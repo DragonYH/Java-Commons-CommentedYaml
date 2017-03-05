@@ -72,6 +72,15 @@ public class CommentedYamlConfig extends CommentedSection{
     }
 
     /**
+     * 获取日志记录器
+     * 
+     * @return 日志记录器
+     */
+    public static ErrorLog getLogger(){
+        return CommentedYamlConfig.mErrorLog;
+    }
+
+    /**
      * 载入配置文件
      * 
      * @param pFile
