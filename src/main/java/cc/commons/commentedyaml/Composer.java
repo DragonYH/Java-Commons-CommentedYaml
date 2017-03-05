@@ -72,19 +72,7 @@ public class Composer{
      * @return 是否导入成功
      */
     public static boolean collectCommentFromString(CommentedYamlConfig pConfig,String pContent){
-        Composer tComposer=new Composer(pConfig,pContent,Mode.Export);
-        YamlNode rootNode=new YamlNode();
-        rootNode.mName="";
-        rootNode.setParent(rootNode);
-        try{
-            while(tComposer.haveUnhandleLine()){
-                tComposer.convertNode(rootNode,-1);
-            }
-        }catch(Throwable exp){
-            System.out.println(exp.getMessage());
-            return false;
-        }
-        return true;
+        return Composer.convert(new Composer(pConfig,pContent,Mode.Export));
     }
 
     /**
@@ -101,23 +89,44 @@ public class Composer{
      */
     public static String putCommentToString(CommentedYamlConfig pConfig,String pContent){
         Composer tComposer=new Composer(pConfig,pContent,Mode.Inject);
+        if(Composer.convert(tComposer)){
+            StringBuilder builder=new StringBuilder();
+            for(String sStr : tComposer.mContent){
+                builder.append(sStr);
+                builder.append(System.getProperty("line.separator","\r\n"));
+            }
+            return builder.toString();
+        }
+        return pContent;
+    }
+
+    /**
+     * 导入或导出注释
+     * 
+     * @param pConfig
+     *            配置管理器
+     * @param pContent
+     *            字符内容
+     * @param pMode
+     *            模式(导入/导出)
+     * @return 是否无错误发生
+     */
+    private static boolean convert(Composer pComposer){
         YamlNode rootNode=new YamlNode();
         rootNode.mName="";
         rootNode.setParent(rootNode);
         try{
-            while(tComposer.haveUnhandleLine()){
-                tComposer.convertNode(rootNode,-1);
+            while(pComposer.haveUnhandleLine()){
+                pComposer.convertNode(rootNode,-1);
             }
+        }catch(IllegalStateException exp){
+            CommentedYamlConfig.getLogger().severe(exp.getMessage());
+            return false;
         }catch(Throwable exp){
-            System.out.println(exp.getMessage());
-            return pContent;
+            CommentedYamlConfig.getLogger().severe("导入导出配置文件注释时发生了错误",exp);
+            return false;
         }
-        StringBuilder builder=new StringBuilder();
-        for(String sStr : tComposer.mContent){
-            builder.append(sStr);
-            builder.append(System.getProperty("line.separator","\r\n"));
-        }
-        return builder.toString();
+        return true;
     }
 
     /**
