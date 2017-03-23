@@ -3,6 +3,7 @@ package cc.commons.commentedyaml;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -1045,6 +1046,17 @@ public class CommentedSection implements ICommentedSection{
         if(tValue!=null)
             return tValue.clearComments();
         else return new ArrayList<>();
+    }
+
+    /**
+     * 清空该配置节点下的所有数据
+     * 
+     * @return 被清理的数据
+     */
+    public Map<String,CommentedValue> clear(){
+        HashMap<String,CommentedValue> tOldData=new HashMap<>(this.mChild);
+        this.mChild.clear();
+        return tOldData;
     }
 
     @Deprecated
