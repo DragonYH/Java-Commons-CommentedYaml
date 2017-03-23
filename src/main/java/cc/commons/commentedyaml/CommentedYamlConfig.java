@@ -359,13 +359,6 @@ public class CommentedYamlConfig extends CommentedSection{
         return this.mDumpOptions.getIndent();
     }
 
-    /**
-     * 清空配置管理器
-     */
-    public void clear(){
-        this.mChild.clear();
-    }
-
     public CommentedOptions options(){
         synchronized(this){
             if(mOptions==null){
