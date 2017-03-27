@@ -343,12 +343,14 @@ public class CommentedSection implements ICommentedSection{
      *            路径
      * @return 创建的节点
      */
-    public CommentedSection createSection(String pPath){
+    public CommentedSection createSection(String pPath,String...pComments){
         WarpKey tWarpKey=new WarpKey();
         CommentedSection tSection=this.getOrCreateParentSection(pPath,tWarpKey);
 
         CommentedSection putSec=new CommentedSection(tSection,tWarpKey.mValue);
-        tSection.mChild.put(tWarpKey.mValue,CommentedValue.wrapperValue(tSection,tWarpKey.mValue,putSec));
+        CommentedValue tValue=CommentedValue.wrapperValue(tSection,tWarpKey.mValue,putSec);
+        tValue.setComments(pComments);
+        tSection.mChild.put(tWarpKey.mValue,tValue);
         return putSec;
     }
 
