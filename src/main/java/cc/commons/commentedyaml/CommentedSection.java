@@ -1059,6 +1059,15 @@ public class CommentedSection implements ICommentedSection{
         return tOldData;
     }
 
+    /**
+     * 该配置节点下是否有数据
+     * 
+     * @return 是否
+     */
+    public boolean isEmpty(){
+        return this.mChild.isEmpty();
+    }
+
     @Deprecated
     public Map<String,CommentedValue> getChildDirect(){
         return this.mChild;
