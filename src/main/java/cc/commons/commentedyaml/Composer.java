@@ -16,7 +16,7 @@ public class Composer{
     /** Yaml节点边界符号 */
     private final static HashSet<Character> mWrapChars;
     /** Yaml源格式字符标识 */
-    private final static HashSet<Character> mRawChars;
+    private final static HashSet<String> mRawMarks;
     /** Yaml单个权重的缩进量,由处理文本时自动确定 */
     private int mIndent=0;
     /**
@@ -46,9 +46,10 @@ public class Composer{
         mWrapChars=new HashSet<>();
         mWrapChars.add('\'');
         mWrapChars.add('"');
-        mRawChars=new HashSet<>();
-        mRawChars.add('<');
-        mRawChars.add('|');
+        mRawMarks=new HashSet<>();
+        mRawMarks.add("<");
+        mRawMarks.add("|");
+        mRawMarks.add("|-");
     }
 
     private Composer(CommentedYamlConfig pConfig,String pContent,Mode pMode){
@@ -89,15 +90,13 @@ public class Composer{
      */
     public static String putCommentToString(CommentedYamlConfig pConfig,String pContent){
         Composer tComposer=new Composer(pConfig,pContent,Mode.Inject);
-        if(Composer.convert(tComposer)){
-            StringBuilder builder=new StringBuilder();
-            for(String sStr : tComposer.mContent){
-                builder.append(sStr);
-                builder.append(System.getProperty("line.separator","\r\n"));
-            }
-            return builder.toString();
+        Composer.convert(tComposer);
+        StringBuilder builder=new StringBuilder();
+        for(String sStr : tComposer.mContent){
+            builder.append(sStr);
+            builder.append(System.getProperty("line.separator","\r\n"));
         }
-        return pContent;
+        return builder.toString();
     }
 
     /**
@@ -281,7 +280,7 @@ public class Composer{
                         }
 
                         // 是不是raw格式
-                        if(tLine.mValue.length()==1&&Composer.mRawChars.contains(tLine.mValue.charAt(0))){
+                        if(Composer.mRawMarks.contains(tLine.mValue)){
                             tLine.mValue=this.readRawContent(pParentWeight+1);
                         }
                         if(tLine.mValue.startsWith("!!")&&tLine.mValue.length()>2){
@@ -633,7 +632,12 @@ public class Composer{
     }
 
     private void log(String pMsg){
-        String showMsg="第"+(this.mLineIndex+2)+"行配置错误,"+pMsg+",无法导入注释\n请提供你的配置文件给作者以供分析格式";
+        String showMsg="第"+(this.mLineIndex+2)+"行配置错误,"+pMsg+",无法导入注释\n请提供你的配置文件给作者以供分析格式\n错误内容(不包括引号) \""+this.getNextUnhandleLine()+"\"";
+        if(this.mMode==Mode.Inject){
+            while(haveUnhandleLine()){
+                this.alreadyHandleLine();
+            }
+        }
         throw new IllegalStateException(showMsg);
     }
 
