@@ -1,6 +1,8 @@
 package cc.commons.commentedyaml;
 
-public class CommentedOptions{
+import org.yaml.snakeyaml.DumperOptions;
+
+public class CommentedOptions extends DumperOptions{
 
     private char mPathSeparator='.';
     private boolean mSaveComment=true;

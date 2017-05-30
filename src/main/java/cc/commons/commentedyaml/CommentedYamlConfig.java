@@ -51,12 +51,10 @@ public class CommentedYamlConfig extends CommentedSection{
     /** 构造类 */
     protected static Class<? extends CommentedConstructor> mConstructorClazz=CommentedConstructor.class;
     
-    /** 配置管理器配置 */
-    protected CommentedOptions mOptions;
     /** Yaml加载器,非线程安全 */
     protected final Yaml mYaml;
-    /** Yaml Dump选项 */
-    protected final DumperOptions mDumpOptions;
+    /** 配置管理器,Yaml Dump选项 */
+    protected final CommentedOptions mOptions;
     /** 仅用于加载,非线程安全 */
     protected final Representer mConfigRepresenter;
 
@@ -158,23 +156,23 @@ public class CommentedYamlConfig extends CommentedSection{
      * 使用指定的消息前缀实例化配置管理器
      */
     public CommentedYamlConfig(){
-        this.mDumpOptions=new DumperOptions();
-        this.mDumpOptions.setIndent(2);
-        this.mDumpOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        this.mDumpOptions.setAllowUnicode(true);
-        if(!this.mDumpOptions.isAllowUnicode()){
+        this.mOptions=new CommentedOptions();
+        this.mOptions.setIndent(2);
+        this.mOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        this.mOptions.setAllowUnicode(true);
+        if(!this.mOptions.isAllowUnicode()){
             Class<DumperOptions> clazz=DumperOptions.class;
             try{
                 Field field=clazz.getDeclaredField("allowUnicode");
                 field.setAccessible(true);
-                field.setBoolean(mDumpOptions,true);
+                field.setBoolean(mOptions,true);
             }catch(Exception exp){
                 this.log("错误,无法设置文件存储为unicode编码",exp);
             }
         }
         this.mConfigRepresenter=CommentedYamlConfig.newRepresenter();
         this.mConfigRepresenter.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        this.mYaml=new Yaml(CommentedYamlConfig.newConstructor(),this.mConfigRepresenter,mDumpOptions);
+        this.mYaml=new Yaml(CommentedYamlConfig.newConstructor(),this.mConfigRepresenter,mOptions);
     }
 
     /**
@@ -216,7 +214,7 @@ public class CommentedYamlConfig extends CommentedSection{
         Map<String,Object> tValues=this.getValues(false);
         Representer tRepresenter=CommentedYamlConfig.newRepresenter();
         tRepresenter.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        String tDumpValue=new Yaml(CommentedYamlConfig.newConstructor(),tRepresenter,mDumpOptions).dump(tValues);
+        String tDumpValue=new Yaml(CommentedYamlConfig.newConstructor(),tRepresenter,mOptions).dump(tValues);
         if(tDumpValue.equals(BLANK_CONFIG))
             return "";
 
@@ -439,23 +437,18 @@ public class CommentedYamlConfig extends CommentedSection{
      *            缩进
      */
     public void setIndent(int pIndent){
-        this.mDumpOptions.setIndent(pIndent);
+        this.mOptions.setIndent(pIndent);
     }
 
     /**
      * 获取Yaml文件单极的空格缩进个数
      */
     public int getIndent(){
-        return this.mDumpOptions.getIndent();
+        return this.mOptions.getIndent();
     }
 
     public CommentedOptions options(){
-        synchronized(this){
-            if(mOptions==null){
-                mOptions=new CommentedOptions();
-            }
-        }
-        return mOptions;
+        return this.mOptions;
     }
 
 }
