@@ -2,7 +2,6 @@ package cc.commons.commentedyaml;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 /**
  * Created by xjboss on 2017/5/29.

@@ -1,8 +1,5 @@
 package cc.commons.commentedyaml;
 
-import org.yaml.snakeyaml.error.YAMLException;
-
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
@@ -10,6 +7,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+
+import org.yaml.snakeyaml.error.YAMLException;
 
 /**
  * Created by xjboss on 2017/5/30.
