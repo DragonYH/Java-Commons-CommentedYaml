@@ -8,6 +8,11 @@ import org.yaml.snakeyaml.representer.Representer;
 
 public class CommentedRepresenter extends Representer{
 
+    /** 实现Serializable接口的类的类型标记 */
+    public static String SerializableMark="===";
+    /** 实现MapSerialize接口的类的类型标记*/
+    public static String MapSerializeMark="==";
+    
     public CommentedRepresenter(){
         this.multiRepresenters.put(CommentedSection.class,new CommentedSectionRepresent());
         this.multiRepresenters.put(CommentedValue.class,new CommentedValueRepresent());
