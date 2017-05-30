@@ -1121,7 +1121,7 @@ public class CommentedSection implements ICommentedSection{
                     comments=commentsList.toArray(comments);
                 }
                 if(o instanceof SerializableYamlObject){
-                    set(f.getName(),getOrCreateSection(f.getName(),comments).loadObject((SerializableYamlObject) o,(Class<SerializableYamlObject>)o.getClass()));
+                    getOrCreateSection(f.getName(),comments).loadObject((SerializableYamlObject) o,(Class<SerializableYamlObject>)o.getClass());
                 }else {
                     set(f.getName(), o, comments);
                 }
