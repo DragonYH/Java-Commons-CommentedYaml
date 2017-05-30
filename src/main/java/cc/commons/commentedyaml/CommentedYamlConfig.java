@@ -6,11 +6,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Type;
-import java.util.*;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,6 +46,11 @@ public class CommentedYamlConfig extends CommentedSection{
     protected static final String BLANK_CONFIG="{}\n";
     /** 错误日记记录器 */
     protected static ErrorLog mErrorLog=new ErrorLog();
+    /** 解析类 */
+    protected static Class<? extends CommentedRepresenter> mRepresenterClazz=CommentedRepresenter.class;
+    /** 构造类 */
+    protected static Class<? extends CommentedConstructor> mConstructorClazz=CommentedConstructor.class;
+    
     /** 配置管理器配置 */
     protected CommentedOptions mOptions;
     /** Yaml加载器,非线程安全 */
@@ -83,6 +85,48 @@ public class CommentedYamlConfig extends CommentedSection{
         return CommentedYamlConfig.mErrorLog;
     }
 
+    /**
+     * 设置Yaml解析类
+     * @param pClazz 解析类
+     */
+    public static void setRepresenter(Class<? extends CommentedRepresenter> pClazz){
+        CommentedYamlConfig.mRepresenterClazz=pClazz;
+    }
+
+    /**
+     * 实例化一个Yaml解析器
+     * @return 解析器
+     */
+    public static Representer newRepresenter(){
+        try{
+            return CommentedYamlConfig.mRepresenterClazz.newInstance();
+        }catch(Throwable exp){
+            CommentedYamlConfig.getLogger().severe(exp);
+            return new CommentedRepresenter();
+        }
+    }
+
+    /**
+     * 设置Yaml构造类
+     * @param pClazz 构造类
+     */
+    public static void setConstructor(Class<? extends CommentedConstructor> pClazz){
+        CommentedYamlConfig.mConstructorClazz=pClazz;
+    }
+
+    /**
+     * 实例化一个Yaml构造器
+     * @return 构造器
+     */
+    public static Constructor newConstructor(){
+        try{
+            return CommentedYamlConfig.mConstructorClazz.newInstance();
+        }catch(Throwable exp){
+            CommentedYamlConfig.getLogger().severe(exp);
+            return new CommentedConstructor();
+        }
+    }
+    
     /**
      * 载入配置文件
      * 
@@ -128,9 +172,9 @@ public class CommentedYamlConfig extends CommentedSection{
                 this.log("错误,无法设置文件存储为unicode编码",exp);
             }
         }
-        this.mConfigRepresenter=new CommentedRepresenter();
+        this.mConfigRepresenter=CommentedYamlConfig.newRepresenter();
         this.mConfigRepresenter.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        this.mYaml=new Yaml(new Constructor(),this.mConfigRepresenter,mDumpOptions);
+        this.mYaml=new Yaml(CommentedYamlConfig.newConstructor(),this.mConfigRepresenter,mDumpOptions);
     }
 
     /**
@@ -170,9 +214,9 @@ public class CommentedYamlConfig extends CommentedSection{
      */
     public String saveToString(){
         Map<String,Object> tValues=this.getValues(false);
-        Representer tRepresenter=new CommentedRepresenter();
+        Representer tRepresenter=CommentedYamlConfig.newRepresenter();
         tRepresenter.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        String tDumpValue=new Yaml(new Constructor(),tRepresenter,mDumpOptions).dump(tValues);
+        String tDumpValue=new Yaml(CommentedYamlConfig.newConstructor(),tRepresenter,mDumpOptions).dump(tValues);
         if(tDumpValue.equals(BLANK_CONFIG))
             return "";
 
