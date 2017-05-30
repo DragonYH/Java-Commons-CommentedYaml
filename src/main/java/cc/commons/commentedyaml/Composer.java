@@ -98,16 +98,11 @@ public class Composer{
         }
         return builder.toString();
     }
-
     /**
      * 导入或导出注释
      * 
-     * @param pConfig
-     *            配置管理器
-     * @param pContent
-     *            字符内容
-     * @param pMode
-     *            模式(导入/导出)
+     * @param pComposer
+     *            注释管理器
      * @return 是否无错误发生
      */
     private static boolean convert(Composer pComposer){
@@ -468,8 +463,6 @@ public class Composer{
      * 
      * @param pLine
      *            行
-     * @param pReset
-     *            是否清空已有注释
      */
     private void addCacheComment(String pLine){
         if(this.mCommentLineIndex+1!=this.mLineIndex){

@@ -26,7 +26,6 @@ public class CommentedRepresenter extends Representer{
     }
 
     public class CommentedSectionRepresent extends RepresentMap{
-
         @Override
         public Node representData(Object pData){
             return super.representData(((CommentedSection)pData).getValues(false));

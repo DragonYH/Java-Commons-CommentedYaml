@@ -6,8 +6,11 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.util.Map;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -211,6 +214,49 @@ public class CommentedYamlConfig extends CommentedSection{
                 }
         }
         return true;
+    }
+    /**
+     * 反序列化指定的数据到指定的类型,如果类型不存在你就会狗带
+     * <p>
+     * 保存数据过程中的任何错误都会被记录到控制台然后忽视
+     * </p>
+     *
+     * @param pClass
+     *            指定的类型
+     * @return T
+     */
+    public <T extends SerializableYamlObject> T saveToObject(Class<T> pClass) throws YAMLException{
+            return SerializableYamlUtils.saveToObject(this,null,pClass);
+    }
+    /**
+     * 反序列化指定的数据到指定的类型,如果类型不存在你就会狗带
+     * <p>
+     * 保存数据过程中的任何错误都会被记录到控制台然后忽视
+     * </p>
+     *
+     * @param pClass
+     *            指定的类型
+     * @return T
+     */
+    public <T extends SerializableYamlObject> T saveToObject(Class<T> pClass,T pObj) throws YAMLException{
+        return SerializableYamlUtils.saveToObject(this,pObj,pClass);
+    }
+    /**
+     * 序列化指定的数据到指定的类型,如果类型不存在你就会狗带
+     * <p>
+     * 保存数据过程中的任何错误都会被记录到控制台然后忽视
+     * </p>
+     *
+     * @param pObj
+     *            指定的对象
+     * @param pClass
+     *            指定的类型
+     * @return CommentedYamlConfig
+     *            返回自己
+     */
+    public <T extends SerializableYamlObject> CommentedYamlConfig loadObject(T pObj, Class<T> pClass) throws YAMLException {
+        super.loadObject(pObj,pClass);
+        return this;
     }
 
     /**

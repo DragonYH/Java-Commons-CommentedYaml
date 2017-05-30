@@ -1,5 +1,10 @@
 package cc.commons.commentedyaml;
 
+import org.yaml.snakeyaml.error.YAMLException;
+
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -316,7 +321,8 @@ public class CommentedSection implements ICommentedSection{
                 tWarpValue=CommentedValue.wrapperValue(tSection,tWarpKey.mValue,pValue);
                 tSection.mChild.put(tWarpKey.mValue,tWarpValue);
             }
-            if(pComments.length>0){
+
+            if(pComments!=null&&pComments.length>0){
                 tWarpValue.setComments(pComments);
             }
         }
@@ -1010,8 +1016,6 @@ public class CommentedSection implements ICommentedSection{
      * 
      * @param pPath
      *            分割的路径集合
-     * @param pComments
-     *            注释
      * @return 注释或null
      */
     @Deprecated
@@ -1079,5 +1083,52 @@ public class CommentedSection implements ICommentedSection{
 
         String mValue=null;
     }
-
+    /**
+     * 序列化指定的数据到指定的类型,如果类型不存在你就会狗带
+     * <p>
+     * 保存数据过程中的任何错误都会被记录到控制台然后忽视
+     * </p>
+     *
+     * @param pObj
+     *            指定的对象
+     * @param pClass
+     *            指定的类型
+     * @return CommentedSection
+     */
+    protected  <T extends SerializableYamlObject> CommentedSection loadObject(T pObj, Class<T> pClass) throws YAMLException {
+        clear();
+        try {
+            Field fs[] = pClass.getDeclaredFields();
+            boolean empty=pObj.comments.isEmpty();
+            for (Field f : fs) {
+                Object o = f.get(pObj);
+                String[] comments=null;
+                ArrayList<String> commentsList;
+                int mod=f.getModifiers();
+                if(Modifier.isFinal(mod)||Modifier.isStatic(mod)||Modifier.isTransient(mod)){
+                    break;
+                }
+                if((empty)||((commentsList=pObj.comments.get(f.getName()))==null)){
+                    Annotation[] annos=f.getAnnotations();
+                    for(Annotation anno:annos){
+                        if(anno instanceof ObjectCommented){
+                            comments=((ObjectCommented) anno).comments();
+                            break;
+                        }
+                    }
+                }else{
+                    comments=new String[commentsList.size()];
+                    comments=commentsList.toArray(comments);
+                }
+                if(o instanceof SerializableYamlObject){
+                    set(f.getName(),getOrCreateSection(f.getName(),comments).loadObject((SerializableYamlObject) o,(Class<SerializableYamlObject>)o.getClass()));
+                }else {
+                    set(f.getName(), o, comments);
+                }
+            }
+            return this;
+        }catch(Exception e){
+            throw new YAMLException("你的类有毛病");
+        }
+    }
 }
