@@ -50,7 +50,7 @@ public class CommentedYamlConfig extends CommentedSection{
     protected static Class<? extends CommentedRepresenter> mRepresenterClazz=CommentedRepresenter.class;
     /** 构造类 */
     protected static Class<? extends CommentedConstructor> mConstructorClazz=CommentedConstructor.class;
-    
+
     /** Yaml加载器,非线程安全 */
     protected final Yaml mYaml;
     /** 配置管理器,Yaml Dump选项 */
@@ -85,7 +85,9 @@ public class CommentedYamlConfig extends CommentedSection{
 
     /**
      * 设置Yaml解析类
-     * @param pClazz 解析类
+     * 
+     * @param pClazz
+     *            解析类
      */
     public static void setRepresenter(Class<? extends CommentedRepresenter> pClazz){
         CommentedYamlConfig.mRepresenterClazz=pClazz;
@@ -93,6 +95,7 @@ public class CommentedYamlConfig extends CommentedSection{
 
     /**
      * 实例化一个Yaml解析器
+     * 
      * @return 解析器
      */
     public static Representer newRepresenter(){
@@ -106,7 +109,9 @@ public class CommentedYamlConfig extends CommentedSection{
 
     /**
      * 设置Yaml构造类
-     * @param pClazz 构造类
+     * 
+     * @param pClazz
+     *            构造类
      */
     public static void setConstructor(Class<? extends CommentedConstructor> pClazz){
         CommentedYamlConfig.mConstructorClazz=pClazz;
@@ -114,6 +119,7 @@ public class CommentedYamlConfig extends CommentedSection{
 
     /**
      * 实例化一个Yaml构造器
+     * 
      * @return 构造器
      */
     public static Constructor newConstructor(){
@@ -124,7 +130,7 @@ public class CommentedYamlConfig extends CommentedSection{
             return new CommentedConstructor();
         }
     }
-    
+
     /**
      * 载入配置文件
      * 
@@ -257,6 +263,7 @@ public class CommentedYamlConfig extends CommentedSection{
         }
         return true;
     }
+
     /**
      * 反序列化指定的数据到指定的类型,如果类型不存在你就会狗带
      * <p>
@@ -268,8 +275,9 @@ public class CommentedYamlConfig extends CommentedSection{
      * @return T
      */
     public <T extends SerializableYamlObject> T saveToObject(Class<T> pClass) throws YAMLException{
-            return SerializableYamlUtils.saveToObject(this,null,pClass);
+        return SerializableYamlUtils.saveToObject(this,null,pClass);
     }
+
     /**
      * 反序列化指定的数据到指定的类型,如果类型不存在你就会狗带
      * <p>
@@ -283,6 +291,7 @@ public class CommentedYamlConfig extends CommentedSection{
     public <T extends SerializableYamlObject> T saveToObject(Class<T> pClass,T pObj) throws YAMLException{
         return SerializableYamlUtils.saveToObject(this,pObj,pClass);
     }
+
     /**
      * 序列化指定的数据到指定的类型,如果类型不存在你就会狗带
      * <p>
@@ -293,10 +302,9 @@ public class CommentedYamlConfig extends CommentedSection{
      *            指定的对象
      * @param pClass
      *            指定的类型
-     * @return CommentedYamlConfig
-     *            返回自己
+     * @return CommentedYamlConfig 返回自己
      */
-    public <T extends SerializableYamlObject> CommentedYamlConfig loadObject(T pObj, Class<T> pClass) throws YAMLException {
+    public <T extends SerializableYamlObject> CommentedYamlConfig loadObject(T pObj,Class<T> pClass) throws YAMLException{
         super.loadObject(pObj,pClass);
         return this;
     }
@@ -431,22 +439,10 @@ public class CommentedYamlConfig extends CommentedSection{
     }
 
     /**
-     * 设置Yaml文件单极的空格缩进个数
+     * 获取管理器的读取,Dump配置
      * 
-     * @param pIndent
-     *            缩进
+     * @return 配置器
      */
-    public void setIndent(int pIndent){
-        this.mOptions.setIndent(pIndent);
-    }
-
-    /**
-     * 获取Yaml文件单极的空格缩进个数
-     */
-    public int getIndent(){
-        return this.mOptions.getIndent();
-    }
-
     public CommentedOptions options(){
         return this.mOptions;
     }
