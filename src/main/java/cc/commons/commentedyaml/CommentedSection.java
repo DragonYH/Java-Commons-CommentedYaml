@@ -1101,6 +1101,7 @@ public class CommentedSection implements ICommentedSection{
             Field fs[] = pClass.getDeclaredFields();
             boolean empty=pObj.comments.isEmpty();
             for (Field f : fs) {
+                f.setAccessible(true);
                 Object o = f.get(pObj);
                 String[] comments=null;
                 ArrayList<String> commentsList;
@@ -1109,12 +1110,10 @@ public class CommentedSection implements ICommentedSection{
                     break;
                 }
                 if((empty)||((commentsList=pObj.comments.get(f.getName()))==null)){
-                    Annotation[] annos=f.getAnnotations();
-                    for(Annotation anno:annos){
-                        if(anno instanceof ObjectCommented){
-                            comments=((ObjectCommented) anno).comments();
-                            break;
-                        }
+                    ObjectCommented oc=f.getAnnotation(ObjectCommented.class);
+                    if(oc!=null){
+                        comments=oc.comments();
+                        System.out.println(comments);
                     }
                 }else{
                     comments=new String[commentsList.size()];
@@ -1128,6 +1127,7 @@ public class CommentedSection implements ICommentedSection{
             }
             return this;
         }catch(Exception e){
+            e.printStackTrace();
             throw new YAMLException("你的类有毛病");
         }
     }
