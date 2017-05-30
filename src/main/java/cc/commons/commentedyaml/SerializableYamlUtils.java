@@ -3,10 +3,7 @@ package cc.commons.commentedyaml;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import org.yaml.snakeyaml.error.YAMLException;
 
@@ -31,9 +28,9 @@ public class SerializableYamlUtils {
     public static <T extends SerializableYamlObject> T saveToObject(CommentedSection pSection, T pObj, Class<T> pClass) throws YAMLException {
         return saveToObject(pSection.values(), pObj, pClass);
     }
-    private static  <T extends SerializableYamlObject> T saveToObject(Map<String,CommentedValue> pInput, T pObj, Class<T> pClass) throws YAMLException {
+    private static  <T> T saveToObject(Map<String,CommentedValue> pInput, T pObj, Class<?> pClass) throws YAMLException {
         try {
-            T obj=pClass.newInstance();
+            SerializableYamlObject obj=(SerializableYamlObject)pClass.newInstance();
             Field[] fields = pClass.getDeclaredFields();
             HashSet<Integer> founded = new HashSet<>();
             HashSet<Integer> all = new HashSet<>();
@@ -56,45 +53,49 @@ public class SerializableYamlUtils {
                     if (f.getName().equals(k)) {
                         if(comments!=null) obj.comments.put(k,comments);
                         founded.add(i);
-                        if(vv instanceof Map&&fo instanceof Map){
-                            ((Map)fo).clear();
-                            ((Map) fo).putAll(ConvertMapObject(k,fo.getClass(),(Map<String,Object>)vv,pObj));
-                            break;
-                        }else if(vv instanceof Map&&fo instanceof SerializableYamlObject){
-                            fo=saveToObject((Map<String,CommentedValue>)vv,(SerializableYamlObject) fo,(Class<SerializableYamlObject>)fo.getClass());
-                        } else if(vv instanceof List &&fo instanceof List){
-                            ((List) fo).clear();
-                            ((List) fo).addAll(ConvertListObject(fo.getClass(),(List<Object>)vv));
+                        if(vv instanceof CommentedSection){
+                            if(fo instanceof Map) {
+                                ((Map) fo).clear();
+                                Map mv = ((CommentedSection) vv).values();
+                                ((Map) fo).putAll(ConvertMapObject(k, fo.getClass(), (Map<String, Object>) mv, obj));
+                            }else if(fo instanceof SerializableYamlObject){
+                                fo=saveToObject(((CommentedSection) vv).values(),fo,f.getType());
+                            }
+                        }else if(vv instanceof Collection &&fo instanceof Collection) {
+                            ((Collection) fo).clear();
+                            ((Collection) fo).addAll(ConvertCollectionObject(fo.getClass(), (Collection<Object>) vv));
                             break;
                         }else if(vv.getClass()!=fo.getClass()){
                             throw new YAMLException(String.format("节点%s类型不对",k));
+                        }else{
+                            fo=vv;
                         }
                         f.set(obj,fo);
                         break;
                     }
                 }
             }
-            if (pObj==null)return obj;
+            if (pObj==null)return (T)obj;
             all.removeAll(founded);
             for(int i:all){
                 Field f=fields[i];
                 f.setAccessible(true);
                 f.set(obj,f.get(pObj));
             }
-            return obj;
+            return (T)obj;
         }catch (Exception e){
+            e.printStackTrace();
             throw new YAMLException("你这个类有毒");
         }
     }
-    private static <T extends SerializableYamlObject,M> Map ConvertMapObject(String pMapName, Class<M> pMapClass, Map<String,Object> pNmap, T pT){
+    private static <T,M> Map ConvertMapObject(String pMapName, Class<M> pMapClass, Map<String,Object> pNmap, T pT){
         try {
             Type[] GT = pMapClass.getClass().getGenericInterfaces();
             Type K = GT[0];
             Type V = GT[1];
             Map newMap = (Map)pMapClass.newInstance();
             boolean VMap=V instanceof Map;
-            boolean VList=V instanceof List;
-
+            boolean VCollection=V instanceof Collection;
             final java.lang.reflect.Constructor Cons;
             if (K instanceof Number) {
                 Cons= K.getClass().getConstructor(String.class);
@@ -105,11 +106,15 @@ public class SerializableYamlUtils {
                 final String key=me.getKey();
                 String tag=null;
                 final Object v=me.getValue();
-                final Object vv;
+                Object vv;
                 if(v instanceof CommentedValue){
                     tag = pMapName + "." + key;
                     vv=me.getValue();
-                    pT.comments.put(tag, ((CommentedValue) v).getComments());
+                    ((SerializableYamlObject)(pT)).comments.put(tag, ((CommentedValue) v).getComments());
+                    if(vv instanceof CommentedSection){
+                        Map mv=((CommentedSection)(((CommentedValue) v).getValue())).values();
+                        vv=ConvertMapObject(tag,V.getClass(),(Map<String,Object>)(mv),pT);
+                    }
                 }else{
                     vv=v;
                 }
@@ -119,11 +124,11 @@ public class SerializableYamlUtils {
                     }else{
                         newMap.put(Cons.newInstance(key),ConvertMapObject(tag,V.getClass(),pNmap,pT));
                     }
-                }else if(VList){
-                    if(Cons==null) {
-                        newMap.put(key, ConvertListObject(V.getClass(),(List<Object>)v));
-                    }else{
-                        newMap.put(Cons.newInstance(key),ConvertListObject(V.getClass(),(List<Object>)v));
+                }else if(VCollection) {
+                    if (Cons == null) {
+                        newMap.put(key, ConvertCollectionObject(V.getClass(), (Collection<Object>) v));
+                    } else {
+                        newMap.put(Cons.newInstance(key), ConvertCollectionObject(V.getClass(), (Collection<Object>) v));
                     }
                 } else {
                     if(Cons==null) {
@@ -140,25 +145,25 @@ public class SerializableYamlUtils {
             }catch(Exception ee){return null;}
         }
     }
-    private static <L> List ConvertListObject(Class<L> pListClass,List<Object> pNewList){
+    private static <L> Collection ConvertCollectionObject(Class<L> pCollectionClass,Collection<Object> pCollection){
         try{
-            Type[] GT = pListClass.getClass().getGenericInterfaces();
+            Type[] GT = pCollectionClass.getClass().getGenericInterfaces();
             Type V=GT[0];
-            List newList=(List)pListClass.newInstance();
+            Collection newCollection=(Collection)pCollectionClass.newInstance();
             boolean VMap=V instanceof Map;
-            boolean VList=V instanceof List;
-            for (Object no:pNewList){
+            boolean VCollection=V instanceof Collection;
+            for (Object no:pCollection){
                 if(VMap){
                     no=ConvertMapObject(null,no.getClass(),(Map<String, Object>) no,null);
-                }else if(VList){
-                    no=ConvertListObject(no.getClass(),(List<Object>) no);
+                }else if(VCollection){
+                    no=ConvertCollectionObject(no.getClass(),(Collection<Object>) no);
                 }
-                newList.add(no);
+                newCollection.add(no);
             }
-            return newList;
+            return newCollection;
         }catch (Exception e){
             try{
-                return (List)pListClass.newInstance();
+                return (Collection)pCollectionClass.newInstance();
             }catch (Exception ee){return null;}
         }
     }

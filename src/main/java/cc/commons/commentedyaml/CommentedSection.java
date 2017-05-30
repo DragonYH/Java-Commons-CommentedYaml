@@ -1109,9 +1109,10 @@ public class CommentedSection implements ICommentedSection{
                     break;
                 }
                 if((empty)||((commentsList=pObj.comments.get(f.getName()))==null)){
-                    ObjectCommented oc=f.getAnnotation(ObjectCommented.class);
+
+                    Comment oc=f.getAnnotation(Comment.class);
                     if(oc!=null){
-                        comments=oc.comments();
+                        comments=oc.comments().clone();
                     }
                 }else{
                     comments=new String[commentsList.size()];
