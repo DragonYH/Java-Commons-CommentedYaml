@@ -1,8 +1,10 @@
-package cc.commons.commentedyaml;
+package cc.commons.commentedyaml.comment;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+
+import cc.commons.commentedyaml.CommentedYamlConfig;
 
 enum Mode{
     /** 将配置管理器中的注释导入到dump出来的字符串中 */
