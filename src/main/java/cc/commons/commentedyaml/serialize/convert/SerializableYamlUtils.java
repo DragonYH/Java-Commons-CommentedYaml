@@ -1,12 +1,20 @@
-package cc.commons.commentedyaml;
+package cc.commons.commentedyaml.serialize.convert;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
 
 import org.yaml.snakeyaml.error.YAMLException;
+
+import cc.commons.commentedyaml.CommentedSection;
+import cc.commons.commentedyaml.CommentedValue;
+import cc.commons.commentedyaml.serialize.SerializableYamlObject;
+import cc.commons.commentedyaml.serialize.annotation.Tag;
 
 /**
  * Created by xjboss on 2017/5/30.
@@ -38,6 +46,10 @@ public class SerializableYamlUtils {
             for (Map.Entry<String, CommentedValue> me:pInput.entrySet()) {
                 String k = me.getKey();
                 CommentedValue v=me.getValue();
+                Object vv=v.getValue();
+                if(vv==null){
+                    continue;
+                }
                 for (int i = 0; i < fields.length; i++) {
                     if (founded.contains(i)) continue;
                     all.add(i);
@@ -47,13 +59,15 @@ public class SerializableYamlUtils {
                         founded.add(i);
                         continue;
                     }
+                    Tag tag=f.getAnnotation(Tag.class);
+                    String tagname=tag!=null&&!tag.name().isEmpty()?tag.name():f.getName();
                     f.setAccessible(true);
                     Object fo=f.get(obj);
-                    Object vv=v.getValue();
                     ArrayList<String> comments=v.getComments();
-                    if (f.getName().equals(k)) {
-                        if(comments!=null) obj.comments.put(k,comments);
+                    if (tagname.equals(k)) {
+                        if(comments!=null) ((SerializableYamlObject)(obj)).getComments().put(k,comments);
                         founded.add(i);
+
                         if(vv instanceof CommentedSection){
                             if(fo instanceof Map) {
                                 ((Map) fo).clear();
@@ -89,8 +103,7 @@ public class SerializableYamlUtils {
             }
             return (T)obj;
         }catch (Exception e){
-            e.printStackTrace();
-            throw new YAMLException("你这个类有毒");
+            throw new YAMLException("你这个类有毒",e);
         }
     }
     private static <T,M> Map ConvertMapObject(String pMapName, Class<M> pMapClass, Map<String,Object> pNmap, T pT){
@@ -115,7 +128,7 @@ public class SerializableYamlUtils {
                 if(v instanceof CommentedValue){
                     tag = pMapName + "." + key;
                     vv=me.getValue();
-                    ((SerializableYamlObject)(pT)).comments.put(tag, ((CommentedValue) v).getComments());
+                    ((SerializableYamlObject)(pT)).getComments().put(tag, ((CommentedValue) v).getComments());
                     if(vv instanceof CommentedSection){
                         Map mv=((CommentedSection)(((CommentedValue) v).getValue())).values();
                         vv=ConvertMapObject(tag,V.getClass(),(Map<String,Object>)(mv),pT);
