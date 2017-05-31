@@ -12,7 +12,7 @@ import org.yaml.snakeyaml.introspector.Property;
 import org.yaml.snakeyaml.nodes.Node;
 import org.yaml.snakeyaml.nodes.Tag;
 
-import cc.commons.commentedyaml.serialize.conver.DataConvert;
+import cc.commons.commentedyaml.serialize.convert.DataConvert;
 
 public class CommentedConstructor extends Constructor{
 
