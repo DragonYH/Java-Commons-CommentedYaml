@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import cc.commons.commentedyaml.serialize.SerializableYamlObject;
+import cc.commons.commentedyaml.serialize.annotation.Tag;
 import org.yaml.snakeyaml.error.YAMLException;
 
 /**
@@ -1098,7 +1100,7 @@ public class CommentedSection implements ICommentedSection{
         clear();
         try {
             Field fs[] = pClass.getDeclaredFields();
-            boolean empty=pObj.comments.isEmpty();
+            boolean empty=pObj.getComments().isEmpty();
             for (Field f : fs) {
                 f.setAccessible(true);
                 Object o = f.get(pObj);
@@ -1108,9 +1110,9 @@ public class CommentedSection implements ICommentedSection{
                 if(Modifier.isFinal(mod)||Modifier.isStatic(mod)||Modifier.isTransient(mod)){
                     break;
                 }
-                if((empty)||((commentsList=pObj.comments.get(f.getName()))==null)){
+                if((empty)||((commentsList=pObj.getComments().get(f.getName()))==null)){
 
-                    Comment oc=f.getAnnotation(Comment.class);
+                    Tag oc=f.getAnnotation(Tag.class);
                     if(oc!=null){
                         comments=oc.comments().clone();
                     }
