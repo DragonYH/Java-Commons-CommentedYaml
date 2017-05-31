@@ -157,6 +157,23 @@ public class CommentedSection implements ICommentedSection{
     }
 
     /**
+     * 获取指定路径节点的父节点,如果不存在,返回null
+     * <p>
+     * 比如当pPath=key1.key2时,函数将查找key2的值存储的节点,父节点
+     * 然后将pWarpKey的值{@link WarpKey#mValue}设置为key2
+     * </p>
+     * 
+     * @param pPath
+     *            路径
+     * @param pWarpKey
+     *            用于存储该路径分割后的最后一个key
+     * @return 父节点或null
+     */
+    protected CommentedSection getParentSection(List<String> pPath,WarpKey pWarpKey){
+        return this.getParentSection(pPath,pWarpKey,false);
+    }
+
+    /**
      * 获取指定路径节点的父节点,如果不存在,则创建对应的节点
      * <p>
      * 比如当pPath=key1.key2时,函数将查找key2的值存储的节点,父节点
@@ -170,6 +187,23 @@ public class CommentedSection implements ICommentedSection{
      * @return 父节点或null
      */
     protected CommentedSection getOrCreateParentSection(String pPath,WarpKey pWarpKey){
+        return this.getParentSection(pPath,pWarpKey,true);
+    }
+
+    /**
+     * 获取指定路径节点的父节点,如果不存在,则创建对应的节点
+     * <p>
+     * 比如当pPath=key1.key2时,函数将查找key2的值存储的节点,父节点
+     * 然后将pWarpKey的值{@link WarpKey#mValue}设置为key2
+     * </p>
+     * 
+     * @param pPath
+     *            路径
+     * @param pWarpKey
+     *            用于存储该路径分割后的最后一个key
+     * @return 父节点或null
+     */
+    protected CommentedSection getOrCreateParentSection(List<String> pPath,WarpKey pWarpKey){
         return this.getParentSection(pPath,pWarpKey,true);
     }
 
@@ -218,18 +252,36 @@ public class CommentedSection implements ICommentedSection{
         if(pPath==null||pPath.isEmpty())
             return null;
         ArrayList<String> childPathes=splitNoEmpty(pPath,this.mRoot.options().pathSeparator());
-        if(childPathes.isEmpty())
+        return this.getOrCreateParentSection(childPathes,pWarpKey);
+    }
+
+    /**
+     * 获取指定路径节点的父节点
+     * 
+     * @param pPath
+     *            路径
+     * @param pWarpKey
+     *            用于存储最后一部分节点路径
+     * @param pCreateNew
+     *            如果节点不存在,是否创建
+     * @return 获取的节点
+     */
+    private CommentedSection getParentSection(List<String> pPath,WarpKey pWarpKey,boolean pCreateNew){
+        if(pPath.isEmpty())
             return null;
 
         if(pWarpKey!=null){
-            pWarpKey.mValue=childPathes.get(childPathes.size()-1);
+            pWarpKey.mValue=pPath.get(pPath.size()-1);
         }
-        if(childPathes.size()==1)
+        if(pPath.size()==1)
             return this;
 
         CommentedSection section=this,tSection;
-        childPathes.remove(childPathes.size()-1);
-        for(String sChildPath : childPathes){
+        int i=pPath.size()-1;
+        for(String sChildPath : pPath){
+            if(i--<=0){
+                break;
+            }
             tSection=section.getSection(sChildPath);
             if(tSection==null){
                 if(pCreateNew){
@@ -258,7 +310,7 @@ public class CommentedSection implements ICommentedSection{
      */
     public Object get(String pPath,Object pDefValue){
         CommentedValue tWarpValue=this.getCommentedValue(pPath);
-        return tWarpValue==null?pDefValue:tWarpValue.getValue();
+        return (tWarpValue==null||tWarpValue.getValue()==null)?pDefValue:tWarpValue.getValue();
     }
 
     /**
@@ -272,6 +324,22 @@ public class CommentedSection implements ICommentedSection{
      * @return 包装的值
      */
     public CommentedValue getCommentedValue(String pPath){
+        WarpKey tWarpKey=new WarpKey();
+        CommentedSection tSection=this.getParentSection(pPath,tWarpKey);
+        return tSection==null?null:tSection.mChild.get(tWarpKey.mValue);
+    }
+
+    /**
+     * 获取包装过的值
+     * <p>
+     * 包装值包括的值本身以及注释,使用{@link CommentedValue#getValue()}可以获取原值
+     * </p>
+     * 
+     * @param pPath
+     *            路径
+     * @return 包装的值
+     */
+    public CommentedValue getCommentedValue(List<String> pPath){
         WarpKey tWarpKey=new WarpKey();
         CommentedSection tSection=this.getParentSection(pPath,tWarpKey);
         return tSection==null?null:tSection.mChild.get(tWarpKey.mValue);
@@ -801,14 +869,40 @@ public class CommentedSection implements ICommentedSection{
      */
     public CommentedSection getOrCreateSection(String pPath,String...pDefComments){
         WarpKey tWarpKey=new WarpKey();
-        CommentedSection tParentSection=this.getOrCreateParentSection(pPath,tWarpKey);
-        if(tParentSection==null)
+        return this.getOrCreateSection(this.getOrCreateParentSection(pPath,tWarpKey),tWarpKey,pDefComments);
+    }
+
+    /**
+     * 获取指定路径下的节点,如果该节点下的值不存在或不是{@link CommentedSection},将创建一个新的节点
+     * 
+     * @param pPath
+     *            路径
+     * @return 获取到或创建的节点
+     */
+    public CommentedSection getOrCreateSection(List<String> pPath,String...pDefComments){
+        WarpKey tWarpKey=new WarpKey();
+        return this.getOrCreateSection(this.getOrCreateParentSection(pPath,tWarpKey),tWarpKey,pDefComments);
+    }
+
+    /**
+     * 获取节点,如果节点不存在则创建
+     * 
+     * @param tParentSec
+     *            父节点
+     * @param pKey
+     *            节点Key
+     * @param pDefComments
+     *            默认注释
+     * @return 获取或创建的节点
+     */
+    protected CommentedSection getOrCreateSection(CommentedSection tParentSec,WarpKey pKey,String...pDefComments){
+        if(tParentSec==null)
             return null;
 
-        CommentedValue tWarpValue=tParentSection.mChild.get(tWarpKey.mValue);
+        CommentedValue tWarpValue=tParentSec.mChild.get(pKey.mValue);
         if(tWarpValue==null||!(tWarpValue.getValue() instanceof CommentedSection)){
-            tWarpValue=CommentedValue.wrapperValue(tParentSection,tWarpKey.mValue,new CommentedSection(tParentSection,tWarpKey.mValue));
-            tParentSection.mChild.put(tWarpKey.mValue,tWarpValue);
+            tWarpValue=CommentedValue.wrapperValue(tParentSec,pKey.mValue,new CommentedSection(tParentSec,pKey.mValue));
+            tParentSec.mChild.put(pKey.mValue,tWarpValue);
         }
         tWarpValue.addDefaultComments(pDefComments);
         return (CommentedSection)tWarpValue.getValue();
@@ -822,7 +916,14 @@ public class CommentedSection implements ICommentedSection{
 
     /** 当前值是不是一个等价字符串 */
     public static boolean isPrimitiveWrapper(Object pValue){
-        return pValue instanceof Integer||pValue instanceof Boolean||pValue instanceof Character||pValue instanceof Byte||pValue instanceof Short||pValue instanceof Double||pValue instanceof Long||pValue instanceof Float;
+        return pValue instanceof Integer
+                ||pValue instanceof Boolean
+                ||pValue instanceof Character
+                ||pValue instanceof Byte
+                ||pValue instanceof Short
+                ||pValue instanceof Double
+                ||pValue instanceof Long
+                ||pValue instanceof Float;
     }
 
     /**
@@ -840,10 +941,15 @@ public class CommentedSection implements ICommentedSection{
         CommentedSection tParentSection=this.getOrCreateParentSection(pPath,tWarpKey);
 
         CommentedValue tValue=tParentSection.mChild.get(tWarpKey.mValue);
-        if(tValue==null){
-            tValue=CommentedValue.wrapperValue(tParentSection,tWarpKey.mValue,pValue);
-            tParentSection.mChild.put(tWarpKey.mValue,tValue);
+        if(tValue==null||tValue.getValue()==null){
+            CommentedValue tNewValue=CommentedValue.wrapperValue(tParentSection,tWarpKey.mValue,pValue);
+            tParentSection.mChild.put(tWarpKey.mValue,tNewValue);
+            if(tValue!=null&&tValue.hasComments()){
+                tNewValue.setComments(tValue.getComments());
+            }
+            tValue=tNewValue;
         }
+
         tValue.addDefaultComments(pComments);
     }
 
@@ -907,7 +1013,7 @@ public class CommentedSection implements ICommentedSection{
     /**
      * 为指定路径下的节点添加注释
      * <p>
-     * 如果节点不存在,将创建一个{@link CommentedSection}节点用于占位
+     * 如果节点不存在,将创建一个{@link CommentedValue}值为null的包装值用于占位
      * </p>
      */
     @Override
@@ -917,7 +1023,7 @@ public class CommentedSection implements ICommentedSection{
 
         CommentedValue tWarpValue=tParentSection.mChild.get(tWarpKey.mValue);
         if(tWarpValue==null){
-            tWarpValue=CommentedValue.wrapperValue(tParentSection,tWarpKey.mValue,new CommentedSection(tParentSection,tWarpKey.mValue));
+            tWarpValue=CommentedValue.wrapperValue(tParentSection,tWarpKey.mValue,null);
             tParentSection.mChild.put(tWarpKey.mValue,tWarpValue);
         }
         tWarpValue.addComments(pComments);
@@ -926,7 +1032,7 @@ public class CommentedSection implements ICommentedSection{
     /**
      * 为指定路径下的节点添加默认注释
      * <p>
-     * 如果节点不存在,将创建一个{@link CommentedSection}节点用于占位<br>
+     * 如果节点不存在,将创建一个{@link CommentedValue}值为null的包装值用于占位<br>
      * 如果该节点已经有注释,不做任何操作
      * </p>
      */
@@ -941,7 +1047,7 @@ public class CommentedSection implements ICommentedSection{
     /**
      * 设置指定路径下节点的注释
      * <p>
-     * 如果节点不存在,将创建一个{@link CommentedSection}节点用于占位
+     * 如果节点不存在,将创建一个{@link CommentedValue}值为null的包装值用于占位
      * </p>
      */
     @Override
@@ -956,28 +1062,19 @@ public class CommentedSection implements ICommentedSection{
     /**
      * 设置指定路径下节点的注释
      * <p>
-     * 如果节点不存在,将创建一个{@link CommentedSection}节点用于占位
+     * 如果节点不存在,将创建一个{@link CommentedValue}值为null的包装值用于占位
      * </p>
      */
     public void setComments(String pPath,Collection<String> pComments){
         WarpKey tKey=new WarpKey();
-        CommentedSection tParentSection=this.getOrCreateParentSection(pPath,tKey);
-        if(tParentSection==null)
-            return;
-
-        CommentedValue tValue=tParentSection.mChild.get(tKey.mValue);
-        if(tValue!=null)
-            tValue.setComments(pComments);
-        else if(pComments!=null&&!pComments.isEmpty()){
-            CommentedSection newSec=new CommentedSection(tParentSection,tKey.mValue);
-            tValue=CommentedValue.wrapperValue(tParentSection,tKey.mValue,newSec);
-            tParentSection.mChild.put(tKey.mValue,tValue);
-            tValue.setComments(pComments);
-        }
+        this.setComment(this.getOrCreateParentSection(pPath,tKey),tKey,pComments);
     }
 
     /**
-     * 为已经存在的节点设置注释
+     * 为节点设置注释
+     * <p>
+     * 如果节点不存在,将创建一个{@link CommentedValue}值为null的包装值用于占位
+     * </p>
      * 
      * @param pPath
      *            分割的路径集合
@@ -985,21 +1082,76 @@ public class CommentedSection implements ICommentedSection{
      *            注释
      */
     public void setComments(List<String> pPath,Collection<String> pComments){
+        WarpKey tKey=new WarpKey();
+        this.setComment(this.getOrCreateParentSection(pPath,tKey),tKey,pComments);
+    }
+
+    /**
+     * 为节点设置注释
+     * <p>
+     * 如果此路径上存在其他值,注释将不会被设置<br>
+     * 其次,如果节点不存在,将创建一个{@link CommentedValue}值为null的包装值用于占位
+     * </p>
+     * 
+     * @param pPath
+     *            分割的路径集合
+     * @param pComments
+     *            注释
+     */
+    public void setCommentsNoReplace(List<String> pPath,Collection<String> pComments){
         if(pPath.isEmpty()||pComments.isEmpty())
             return;
-
         CommentedValue tValue=null;
         CommentedSection tSection=this;
         Iterator<String> sIt=pPath.iterator();
         while(true){
-            tValue=tSection.mChild.get(sIt.next());
-            if(tValue==null||(sIt.hasNext()&&!(tValue.getValue() instanceof CommentedSection)))
-                return;
+            String tKey=sIt.next();
+            tValue=tSection.mChild.get(tKey);
+            if(tValue==null){
+                if(sIt.hasNext()){
+                    tValue=CommentedValue.wrapperValue(tSection,tKey,new CommentedSection(tSection,tKey));
+                }else{
+                    tValue=CommentedValue.wrapperValue(tSection,tKey,null);
+                    break;
+                }
+            }else{
+                if(sIt.hasNext()&&!(tValue.getValue() instanceof CommentedSection)){
+                    return;
+                }
+            }
+
             if(!sIt.hasNext())
                 break;
             tSection=(CommentedSection)tValue.getValue();
         }
         tValue.setComments(pComments);
+    }
+
+    /**
+     * 为节点设置注释
+     * <p>
+     * 如果节点不存在,将创建一个{@link CommentedValue}值为null的包装值用于占位
+     * </p>
+     * 
+     * @param pParentSec
+     *            父节点
+     * @param pKey
+     *            节点
+     * @param pComments
+     *            注释
+     */
+    protected void setComment(CommentedSection pParentSec,WarpKey pKey,Collection<String> pComments){
+        if(pParentSec==null)
+            return;
+
+        CommentedValue tValue=pParentSec.mChild.get(pKey.mValue);
+        if(tValue!=null)
+            tValue.setComments(pComments);
+        else if(pComments!=null&&!pComments.isEmpty()){
+            tValue=CommentedValue.wrapperValue(pParentSec,pKey.mValue,null);
+            pParentSec.mChild.put(pKey.mValue,tValue);
+            tValue.setComments(pComments);
+        }
     }
 
     @Override
@@ -1045,12 +1197,30 @@ public class CommentedSection implements ICommentedSection{
         else return false;
     }
 
+    /**
+     * 清空此路径上的注释
+     * <p>
+     * 如果此路径上的注释值为占位符,将同时移除此占位符
+     * </p>
+     * 
+     * @param pPath
+     *            路径
+     * @return 被清理的注释,非null
+     */
     @Override
     public ArrayList<String> clearComments(String pPath){
-        CommentedValue tValue=this.getCommentedValue(pPath);
-        if(tValue!=null)
-            return tValue.clearComments();
-        else return new ArrayList<>();
+        WarpKey tKey=new WarpKey();
+        CommentedSection tParentSec=this.getOrCreateParentSection(pPath,tKey);
+        if(tParentSec!=null){
+            CommentedValue tValue=tParentSec.mChild.get(tKey.mValue);
+            if(tValue!=null){
+                if(tValue.getValue()==null){
+                    tParentSec.mChild.remove(tKey.mValue);
+                }
+                return tValue.clearComments();
+            }
+        }
+        return new ArrayList<>();
     }
 
     /**
@@ -1082,6 +1252,7 @@ public class CommentedSection implements ICommentedSection{
 
         String mValue=null;
     }
+
     /**
      * 序列化指定的数据到指定的类型,如果类型不存在你就会狗带
      * <p>
@@ -1094,14 +1265,14 @@ public class CommentedSection implements ICommentedSection{
      *            指定的类型
      * @return CommentedSection
      */
-    protected  <T extends SerializableYamlObject> CommentedSection loadObject(T pObj, Class<T> pClass) throws YAMLException {
+    protected <T extends SerializableYamlObject> CommentedSection loadObject(T pObj,Class<T> pClass) throws YAMLException{
         clear();
-        try {
-            Field fs[] = pClass.getDeclaredFields();
+        try{
+            Field fs[]=pClass.getDeclaredFields();
             boolean empty=pObj.comments.isEmpty();
-            for (Field f : fs) {
+            for(Field f : fs){
                 f.setAccessible(true);
-                Object o = f.get(pObj);
+                Object o=f.get(pObj);
                 String[] comments=null;
                 ArrayList<String> commentsList;
                 int mod=f.getModifiers();
@@ -1119,9 +1290,9 @@ public class CommentedSection implements ICommentedSection{
                     comments=commentsList.toArray(comments);
                 }
                 if(o instanceof SerializableYamlObject){
-                    getOrCreateSection(f.getName(),comments).loadObject((SerializableYamlObject) o,(Class<SerializableYamlObject>)o.getClass());
-                }else {
-                    set(f.getName(), o, comments);
+                    getOrCreateSection(f.getName(),comments).loadObject((SerializableYamlObject)o,(Class<SerializableYamlObject>)o.getClass());
+                }else{
+                    set(f.getName(),o,comments);
                 }
             }
             return this;
