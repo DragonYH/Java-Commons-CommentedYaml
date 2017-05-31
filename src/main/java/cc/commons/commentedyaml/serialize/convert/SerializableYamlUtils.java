@@ -1,5 +1,6 @@
 package cc.commons.commentedyaml;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
@@ -66,7 +67,11 @@ public class SerializableYamlUtils {
                             ((Collection) fo).addAll(ConvertCollectionObject(fo.getClass(), (Collection<Object>) vv));
                             break;
                         }else if(vv.getClass()!=fo.getClass()){
-                            throw new YAMLException(String.format("节点%s类型不对",k));
+                            if((vv instanceof Number&&fo instanceof Number)) {
+
+                            }else{
+                                throw new YAMLException(String.format("节点%s类型不对", k));
+                            }
                         }else{
                             fo=vv;
                         }
@@ -96,7 +101,7 @@ public class SerializableYamlUtils {
             Map newMap = (Map)pMapClass.newInstance();
             boolean VMap=V instanceof Map;
             boolean VCollection=V instanceof Collection;
-            final java.lang.reflect.Constructor Cons;
+            final Constructor Cons;
             if (K instanceof Number) {
                 Cons= K.getClass().getConstructor(String.class);
             }else{
