@@ -1,4 +1,4 @@
-package cc.commons.commentedyaml;
+package cc.commons.commentedyaml.serialize;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
