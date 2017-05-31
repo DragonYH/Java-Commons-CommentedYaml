@@ -5,9 +5,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.yaml.snakeyaml.DumperOptions.FlowStyle;
 import org.yaml.snakeyaml.nodes.MappingNode;
 import org.yaml.snakeyaml.nodes.Node;
 import org.yaml.snakeyaml.nodes.NodeTuple;
+import org.yaml.snakeyaml.nodes.ScalarNode;
 import org.yaml.snakeyaml.nodes.Tag;
 import org.yaml.snakeyaml.representer.Represent;
 import org.yaml.snakeyaml.representer.Representer;
@@ -60,7 +62,31 @@ public class CommentedRepresenter extends Representer{
 
         @Override
         public Node representData(Object pData){
-            return super.representData(((CommentedSection)pData).getValues(false));
+            Map<String,CommentedValue> tMapValues=((CommentedSection)pData).values();
+            List<NodeTuple> tNodes=new ArrayList<NodeTuple>(tMapValues.size());
+            MappingNode tNode=new MappingNode(Tag.MAP,tNodes,null);
+            representedObjects.put(objectToRepresent,tNode);
+            boolean tBestStyle=true;
+            for(Map.Entry<String,CommentedValue> sEntry : tMapValues.entrySet()){
+                if(sEntry.getValue().getValue()==null)
+                    continue;
+
+                Node tNodeKey=CommentedRepresenter.this.representData(sEntry.getKey());
+                Node tNodeValue=CommentedRepresenter.this.representData(sEntry.getValue());
+                if(!(tNodeKey instanceof ScalarNode&&((ScalarNode)tNodeKey).getStyle()==null)){
+                    tBestStyle=false;
+                }
+                if(!(tNodeValue instanceof ScalarNode&&((ScalarNode)tNodeValue).getStyle()==null)){
+                    tBestStyle=false;
+                }
+                tNodes.add(new NodeTuple(tNodeKey,tNodeValue));
+            }
+            if(defaultFlowStyle!=FlowStyle.AUTO){
+                tNode.setFlowStyle(defaultFlowStyle.getStyleBoolean());
+            }else{
+                tNode.setFlowStyle(tBestStyle);
+            }
+            return tNode;
         }
     };
 
