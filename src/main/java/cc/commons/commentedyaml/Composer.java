@@ -247,7 +247,7 @@ public class Composer{
                         if(this.mMode==Mode.Export){
                             this.alreadyHandleLine();
                             if(!this.mComment.isEmpty()&&(fullPath=nowNode.getPathList())!=null){
-                                this.mConfig.setComments(fullPath,this.mComment);
+                                this.mConfig.setCommentsNoReplace(fullPath,this.mComment);
                                 this.mComment.clear();
                             }
                         }else{
@@ -290,7 +290,7 @@ public class Composer{
                                 this.addCacheComment(tLine.mValue);
                             }
                             if(!this.mComment.isEmpty()&&(fullPath=nowNode.getPathList())!=null){
-                                this.mConfig.setComments(fullPath,this.mComment);
+                                this.mConfig.setCommentsNoReplace(fullPath,this.mComment);
                                 this.mComment.clear();
                             }
                         }else{
