@@ -13,9 +13,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.yaml.snakeyaml.error.YAMLException;
+
 import cc.commons.commentedyaml.serialize.SerializableYamlObject;
 import cc.commons.commentedyaml.serialize.annotation.Tag;
-import org.yaml.snakeyaml.error.YAMLException;
 
 /**
  * 支持注释的节点
@@ -23,7 +24,7 @@ import org.yaml.snakeyaml.error.YAMLException;
  * @author 聪聪
  *
  */
-public class CommentedSection implements ICommentedSection{
+public class CommentedSection{
 
     /** 值存放处 */
     protected final Map<String,CommentedValue> mChild=Collections.synchronizedMap(new LinkedHashMap<String,CommentedValue>());
@@ -1018,7 +1019,6 @@ public class CommentedSection implements ICommentedSection{
      * 如果节点不存在,将创建一个{@link CommentedValue}值为null的包装值用于占位
      * </p>
      */
-    @Override
     public void addComments(String pPath,String...pComments){
         WarpKey tWarpKey=new WarpKey();
         CommentedSection tParentSection=this.getOrCreateParentSection(pPath,tWarpKey);
@@ -1038,7 +1038,6 @@ public class CommentedSection implements ICommentedSection{
      * 如果该节点已经有注释,不做任何操作
      * </p>
      */
-    @Override
     public void addDefaultComments(String pPath,String...pComments){
         CommentedValue tValue=this.getCommentedValue(pPath);
         if(tValue!=null)
@@ -1052,7 +1051,6 @@ public class CommentedSection implements ICommentedSection{
      * 如果节点不存在,将创建一个{@link CommentedValue}值为null的包装值用于占位
      * </p>
      */
-    @Override
     public void setComments(String pPath,String...pComments){
         Collection<String> tComments=new ArrayList<>();
         for(String sComment : pComments){
@@ -1156,7 +1154,13 @@ public class CommentedSection implements ICommentedSection{
         }
     }
 
-    @Override
+    /**
+     * 获取注释
+     * 
+     * @param pPath
+     *            路径
+     * @return 注释,非null
+     */
     public ArrayList<String> getComments(String pPath){
         CommentedValue tValue=this.getCommentedValue(pPath);
         if(tValue!=null)
@@ -1169,10 +1173,9 @@ public class CommentedSection implements ICommentedSection{
      * 
      * @param pPath
      *            分割的路径集合
-     * @return 注释或null
+     * @return 注释,非null
      */
-    @Deprecated
-    protected ArrayList<String> getComments(List<String> pPath){
+    public ArrayList<String> getComments(List<String> pPath){
         if(pPath.isEmpty())
             return null;
 
@@ -1182,7 +1185,7 @@ public class CommentedSection implements ICommentedSection{
         while(true){
             tValue=tSection.mChild.get(sIt.next());
             if(tValue==null||(sIt.hasNext()&&!(tValue.getValue() instanceof CommentedSection)))
-                return null;
+                return new ArrayList<>(0);
 
             if(!sIt.hasNext())
                 break;
@@ -1191,7 +1194,13 @@ public class CommentedSection implements ICommentedSection{
         return tValue.getComments();
     }
 
-    @Override
+    /**
+     * 检查是否有注释
+     * 
+     * @param pPath
+     *            路径
+     * @return 是否有注释
+     */
     public boolean hasComments(String pPath){
         CommentedValue tValue=this.getCommentedValue(pPath);
         if(tValue!=null)
@@ -1209,7 +1218,6 @@ public class CommentedSection implements ICommentedSection{
      *            路径
      * @return 被清理的注释,非null
      */
-    @Override
     public ArrayList<String> clearComments(String pPath){
         WarpKey tKey=new WarpKey();
         CommentedSection tParentSec=this.getOrCreateParentSection(pPath,tKey);
@@ -1269,10 +1277,10 @@ public class CommentedSection implements ICommentedSection{
      */
     protected <T extends SerializableYamlObject> CommentedSection loadObject(T pObj,Class<T> pClass) throws YAMLException{
         clear();
-        try {
-            Field fs[] = pClass.getDeclaredFields();
+        try{
+            Field fs[]=pClass.getDeclaredFields();
             boolean empty=pObj.getComments().isEmpty();
-            for (Field f : fs) {
+            for(Field f : fs){
                 f.setAccessible(true);
                 Object o=f.get(pObj);
                 String[] comments=null;
