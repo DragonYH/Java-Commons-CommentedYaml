@@ -55,7 +55,11 @@ public class CommentedValue{
         }else this.mValue=CommentedValue.convertValue(pParent,pPath,pValue);
     }
 
-    /** 获取包装的值 */
+    /**
+     * 获取包装的值
+     * 
+     * @return 包装的值,如果为null,表示此为占位符
+     */
     public Object getValue(){
         return this.mValue;
     }
@@ -196,7 +200,7 @@ public class CommentedValue{
      */
     private static Object convertValue(CommentedSection pParent,String pPath,Object pValue){
         if(pValue==null)
-            throw new IllegalArgumentException("值包装类不能包装null值");
+            return null;
         if(pValue instanceof CommentedValue){
             throw new IllegalArgumentException("值包装类不能包装值包装类实例");
         }else if(pValue instanceof CommentedSection){
