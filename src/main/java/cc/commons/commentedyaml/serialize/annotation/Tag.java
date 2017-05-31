@@ -10,6 +10,7 @@ import java.lang.annotation.Target;
  */
 @Target({ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Comment {
-    String[] comments();
+public @interface Tag {
+    String[] comments() default "";
+    String name() default "";
 }
