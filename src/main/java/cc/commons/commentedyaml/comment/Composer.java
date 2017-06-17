@@ -448,20 +448,6 @@ public class Composer{
         this.mCommentLineIndex=this.mLineIndex;
     }
 
-    /**
-     * 获取空格数量
-     * <p>
-     * 如果返回-1,说明该行是注释行或者为空行
-     * </p>
-     * 
-     * @param pLine
-     *            行
-     * @return 该行空格数量
-     */
-    private int getSpaceCount(String pLine){
-        return getSpaceCount(pLine,0);
-    }
-
     private int mCachedSpaceCount=-1;
     private String mCachedSpaceCountStr=null;
 
@@ -475,14 +461,14 @@ public class Composer{
      *            行
      * @return 该行空格数量
      */
-    private int getSpaceCount(String pLine,int pOffset){
+    private int getSpaceCount(String pLine){
         if(pLine==null||pLine.isEmpty())
             return -1;
 
         if(this.mCachedSpaceCountStr!=pLine){
             this.mCachedSpaceCountStr=pLine;
             char[] tLineChars=pLine.toCharArray();
-            int i=pOffset-1;
+            int i=-1;
             while(++i<tLineChars.length&&tLineChars[i]==' ');
             if(i>=tLineChars.length||tLineChars[i]=='#'){
                 this.mCachedSpaceCount=-1;
@@ -491,7 +477,7 @@ public class Composer{
             }
         }
 
-        return this.mCachedSpaceCount==-1?-1:Math.max(0,this.mCachedSpaceCount-pOffset);
+        return this.mCachedSpaceCount;
     }
 
     private YamlNode getLineType(YamlNode pParent,String pLine){
