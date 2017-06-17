@@ -135,16 +135,15 @@ public class CommentedValue{
     }
 
     /**
-     * 获取指定路径下的注释的拷贝
+     * 获取注释,可编辑
      * 
      * @return 非null
      */
     public ArrayList<String> getComments(){
-        ArrayList<String> copyComments=new ArrayList<>();
-        if(this.mComments!=null){
-            copyComments.addAll(this.mComments);
+        if(this.mComments==null){
+            this.mComments=new ArrayList<>();
         }
-        return copyComments;
+        return this.mComments;
     }
 
     /**
