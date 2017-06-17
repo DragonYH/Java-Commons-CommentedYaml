@@ -55,6 +55,7 @@ public class Composer{
     }
 
     private Composer(CommentedYamlConfig pConfig,String pContent,Mode pMode){
+        //TODO Export模式是否检查下内容中有没有包含注释字符来跳过Yaml格式分析来加速
         this.mMode=pMode;
         this.mConfig=pConfig;
 
@@ -109,7 +110,6 @@ public class Composer{
      * @return 是否无错误发生
      */
     private static boolean convert(Composer pComposer){
-        long tTime=System.currentTimeMillis();
         YamlNode tRootNode=new YamlNode();
         tRootNode.setParent(tRootNode);
         try{
@@ -126,7 +126,6 @@ public class Composer{
             CommentedYamlConfig.getLogger().severe("导入导出配置文件注释时发生了错误",exp);
             return false;
         }
-        System.out.println("Composer: "+(System.currentTimeMillis()-tTime));
         return true;
     }
 
