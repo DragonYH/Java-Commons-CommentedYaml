@@ -494,16 +494,8 @@ public class Composer{
         return this.mCachedSpaceCount==-1?-1:Math.max(0,this.mCachedSpaceCount-pOffset);
     }
 
-    private YamlNode mCachedNode=null;
-    private String mCachedLine=null;
-
     private YamlNode getLineType(YamlNode pParent,String pLine){
-        if(pLine==this.mCachedLine&&this.mCachedNode.getParent()==pParent){
-            return this.mCachedNode;
-        }
-
-        this.mCachedLine=pLine;
-        YamlNode tNode=mCachedNode=new YamlNode();
+        YamlNode tNode=new YamlNode();
         tNode.setParent(pParent);
         pLine=pLine.trim();
 
