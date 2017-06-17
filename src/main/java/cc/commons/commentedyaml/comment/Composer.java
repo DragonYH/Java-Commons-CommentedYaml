@@ -485,26 +485,11 @@ public class Composer{
         tNode.setParent(pParent);
         pLine=pLine.trim();
 
-        if(pLine.isEmpty()){
+        if(pLine.isEmpty()||pLine.charAt(0)=='#'){
             tNode.mType=LineType.Comment;
             tNode.mValueStr=pLine;
-        }else if(pLine.charAt(0)=='#'){
-            tNode.mType=LineType.Comment;
-            if(pLine.length()>=2&&pLine.charAt(1)==' '){
-                tNode.mValueStr=pLine.substring(2);
-            }else{
-                tNode.mValueStr=pLine.substring(1);
-            }
         }else if(pLine.startsWith("- ")){
             tNode.mType=LineType.List;
-            // TODO array的Value并未使用到,可能会移除此段代码
-            // int tPos=2,tLen=pLine.length();
-            // while(++tPos<tLen&&pLine.charAt(tPos)==' ');
-            // if(tPos>=pLine.length()){
-            //     tNode.mValueStr="";
-            // }else{
-            //     tNode.mValueStr=pLine.substring(tPos);
-            // }
         }else{
             char[] tArrs=pLine.toCharArray();
             int tIndex=0;
