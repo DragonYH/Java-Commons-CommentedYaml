@@ -2,14 +2,13 @@ package cc.commons.commentedyaml.comment;
 
 public class LineObject{
 
-    protected LineObject(){}
-
-    public LineType mLineType;
-
+    public final String mContent;
+    public LineType mType;
     public String mName;
-
     public String mValue;
 
-    public boolean mValueWarp;
+    protected LineObject(String pContent){
+        this.mContent=pContent;
+    }
 
 }

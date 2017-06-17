@@ -4,19 +4,14 @@ import java.util.ArrayList;
 
 public class YamlNode{
 
-    public static YamlNode empty;
-
-    private ArrayList<String> mComment=new ArrayList<>();
-    /** 仅当节点为根节点时,此值才会Empty */
-    public String mName;
+    /** 父节点,用于构造路径 */
     private YamlNode mParent;
-
-    protected void setComment(ArrayList<String> pComment){
-        if(pComment==null||pComment.isEmpty())
-            return;
-        this.mComment.clear();
-        this.mComment.addAll(pComment);
-    }
+    /** 节点为根节点时或List的值节点时,此值才会Empty */
+    public String mName="";
+    /** 节点字符串形式的值 */
+    public String mValueStr="";
+    /** 节点类型 */
+    public LineType mType=null;
 
     /**
      * 获取当前节点到根节点的路径
@@ -40,6 +35,8 @@ public class YamlNode{
                 if(tNode==tNode.mParent)
                     return tPath;
 
+                if(tNode.mName==null||tNode.mName.isEmpty())
+                    return null;
                 tPath.add(0,tNode.mName);
                 tNode=tNode.mParent;
             }
@@ -49,6 +46,10 @@ public class YamlNode{
 
     public void setParent(YamlNode pNode){
         this.mParent=pNode;
+    }
+
+    public YamlNode getParent(){
+        return this.mParent;
     }
 
     @Override
