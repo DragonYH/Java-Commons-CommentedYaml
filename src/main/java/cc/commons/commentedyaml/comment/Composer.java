@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 
 import cc.commons.commentedyaml.CommentedYamlConfig;
+import cc.commons.commentedyaml.serialize.SerializableYamlObject;
 
 enum Mode{
     /** 将配置管理器中的注释导入到dump出来的字符串中 */
@@ -35,6 +36,8 @@ public class Composer{
     private String[] mLines;
     /** 当前绑定的配置管理器 */
     private CommentedYamlConfig mConfig;
+    /** 当前绑定的Yaml对象 */
+    private SerializableYamlObject mObject;
     /** 当前与注释合并的文本 */
     private final ArrayList<String> mContent=new ArrayList<>();
     /** 当前从文本中提取出且未保存到配置管理器中的注释 */
@@ -61,7 +64,12 @@ public class Composer{
         this.mSourceLines=pContent.split("[\\r]?\n");
         this.mLines=Arrays.copyOf(this.mSourceLines,this.mSourceLines.length);
     }
-
+    private Composer(SerializableYamlObject pObject,String pContent,Mode pMode){
+        this.mMode=pMode;
+        this.mObject=pObject;
+        this.mSourceLines=pContent.split("[\\r]?\n");
+        this.mLines=Arrays.copyOf(this.mSourceLines,this.mSourceLines.length);
+    }
     /**
      * 从给予的文本中搜索节点的注释,并导入到配置管理器中
      * <p>
@@ -77,7 +85,21 @@ public class Composer{
     public static boolean collectCommentFromString(CommentedYamlConfig pConfig,String pContent){
         return Composer.convert(new Composer(pConfig,pContent,Mode.Export));
     }
-
+    /**
+     * 从给予的文本中搜索节点的注释,并导入到配置管理器中
+     * <p>
+     * 如果导入出错,导入将终止,但是已经导入的注释将会保持
+     * </p>
+     *
+     * @param pConfig
+     *            YAML对象
+     * @param pContent
+     *            文本
+     * @return 是否导入成功
+     */
+    public static boolean collectCommentFromString(SerializableYamlObject pConfig,String pContent){
+        return Composer.convert(new Composer(pConfig,pContent,Mode.Export));
+    }
     /**
      * 将配置管理器中的注释输出并嵌入到文本中
      * <p>
@@ -249,12 +271,18 @@ public class Composer{
                         if(this.mMode==Mode.Export){
                             this.alreadyHandleLine();
                             if(!this.mComment.isEmpty()&&(fullPath=nowNode.getPathList())!=null){
+                                if(mConfig!=null)
                                 this.mConfig.setCommentsNoReplace(fullPath,this.mComment);
+                                if(mObject!=null)
+                                    this.mObject.add(fullPath,this.mComment);
                                 this.mComment.clear();
                             }
                         }else{
                             if((fullPath=nowNode.getPathList())!=null){
-                                this.addCommentToContent(pParentWeight+1,this.mConfig.getComments(fullPath));
+                                if(mConfig!=null)
+                                    this.addCommentToContent(pParentWeight+1,this.mConfig.getComments(fullPath));
+                                if(mObject!=null)
+                                    this.addCommentToContent(pParentWeight+1,this.mObject.get(fullPath));
                             }
                             this.alreadyHandleLine();
                         }
@@ -292,12 +320,18 @@ public class Composer{
                                 this.addCacheComment(tLine.mValue);
                             }
                             if(!this.mComment.isEmpty()&&(fullPath=nowNode.getPathList())!=null){
-                                this.mConfig.setCommentsNoReplace(fullPath,this.mComment);
+                                if(mConfig!=null)
+                                    this.mConfig.setCommentsNoReplace(fullPath,this.mComment);
+                                if(mObject!=null)
+                                    this.mObject.add(fullPath,this.mComment);
                                 this.mComment.clear();
                             }
                         }else{
                             if((fullPath=nowNode.getPathList())!=null){
-                                this.addCommentToContent(pParentWeight+1,this.mConfig.getComments(fullPath));
+                                if(mConfig!=null)
+                                    this.addCommentToContent(pParentWeight+1,this.mConfig.getComments(fullPath));
+                                if(mObject!=null)
+                                    this.addCommentToContent(pParentWeight+1,this.mObject.get(fullPath));
                             }
                             this.alreadyHandleLine(); // 先设置注释,再调用此方法设置内容
                         }

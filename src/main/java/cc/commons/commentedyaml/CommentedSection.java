@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import cc.commons.commentedyaml.serialize.convert.SerializableYamlUtils;
 import org.yaml.snakeyaml.error.YAMLException;
 
 import cc.commons.commentedyaml.serialize.SerializableYamlObject;
@@ -1275,40 +1276,8 @@ public class CommentedSection{
      *            指定的类型
      * @return CommentedSection
      */
-    protected <T extends SerializableYamlObject> CommentedSection loadObject(T pObj,Class<T> pClass) throws YAMLException{
-        clear();
-        try{
-            Field fs[]=pClass.getDeclaredFields();
-            boolean empty=pObj.getComments().isEmpty();
-            for(Field f : fs){
-                f.setAccessible(true);
-                Object o=f.get(pObj);
-                String[] comments=null;
-                ArrayList<String> commentsList;
-                int mod=f.getModifiers();
-                if(Modifier.isFinal(mod)||Modifier.isStatic(mod)||Modifier.isTransient(mod)){
-                    break;
-                }
-                if((empty)||((commentsList=pObj.getComments().get(f.getName()))==null)){
-
-                    Tag oc=f.getAnnotation(Tag.class);
-                    if(oc!=null){
-                        comments=oc.comments().clone();
-                    }
-                }else{
-                    comments=new String[commentsList.size()];
-                    comments=commentsList.toArray(comments);
-                }
-                if(o instanceof SerializableYamlObject){
-                    getOrCreateSection(f.getName(),comments).loadObject((SerializableYamlObject)o,(Class<SerializableYamlObject>)o.getClass());
-                }else{
-                    set(f.getName(),o,comments);
-                }
-            }
-            return this;
-        }catch(Exception e){
-            e.printStackTrace();
-            throw new YAMLException("你的类有毛病");
-        }
+    public <T extends SerializableYamlObject> CommentedSection loadObject(T pObj,Class<T> pClass) throws YAMLException{
+        SerializableYamlUtils.loadObject(this,pObj,pClass);
+        return this;
     }
 }

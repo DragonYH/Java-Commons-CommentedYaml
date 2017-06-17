@@ -104,6 +104,7 @@ public class CommentedValue{
      *            注释
      */
     public void setComments(String...pComments){
+        if(pComments==null)return;
         this.setComments(Arrays.asList(pComments));
     }
 
