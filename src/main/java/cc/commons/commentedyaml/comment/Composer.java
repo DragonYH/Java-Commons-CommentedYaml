@@ -9,9 +9,9 @@ import cc.commons.commentedyaml.CommentedYamlConfig;
 
 enum Mode{
     /** 将配置管理器中的注释导入到dump出来的字符串中 */
-    Inject,
+    DUMP,
     /** 从字符串中读取出注释 */
-    Export
+    LOAD
 }
 
 public class Composer{
@@ -22,24 +22,37 @@ public class Composer{
     /** Yaml源格式字符标识 */
     private final static HashSet<String> mRawMarks;
     /**
+     * 已经处理完毕的文本的最后一行索引
+     * <p>
      * 请勿直接调用该变量<br>
      * 使用{@link Composer#alreadyHandleLine()}来更改已经处理的当前行<br>
      * 使用{@link Composer#getNextUnhandleLine()}来获取下一行未处理的文本<br>
      * 使用{@link Composer#haveUnhandleLine()}来判断是否已经处理完所有行文本<br>
+     * </p>
      */
     @Deprecated
     private int mLineIndex=-1;
-    /** 原文本的行 */
+    /**
+     * 原文本的行
+     * <p>
+     * 在{@link Mode#DUMP}模式中,函数{@link #alreadyHandleLine()}会使用到此内容来写入到{@link #mContent}
+     * </p>
+     */
     private String[] mSourceLines;
-    /** 原文本的行,内容可能会在程序处理过程中发生变化 */
+    /**
+     * 原文本的行
+     * <p>
+     * 内容可能会在程序处理过程中发生变化
+     * </p>
+     */
     private String[] mLines;
-    /** 当前绑定的配置管理器 */
+    /** 绑定的配置管理器 */
     private CommentedYamlConfig mConfig;
-    /** 当前与注释合并的文本 */
+    /** 与注释合并的文本 */
     private final ArrayList<String> mContent=new ArrayList<>();
-    /** 当前从文本中提取出且未保存到配置管理器中的注释 */
+    /** 从文本中提取出且未保存到配置管理器中的注释 */
     private ArrayList<String> mComment=new ArrayList<>();
-    /** 当前最后一条缓存的注释所在的行数 */
+    /** 最后一条缓存的注释所在的行数 */
     private int mCommentLineIndex=-1;
     /** 注释操作模式 */
     private Mode mMode;
@@ -55,13 +68,14 @@ public class Composer{
     }
 
     private Composer(CommentedYamlConfig pConfig,String pContent,Mode pMode){
-        //TODO Export模式是否检查下内容中有没有包含注释字符来跳过Yaml格式分析来加速
         this.mMode=pMode;
         this.mConfig=pConfig;
 
         pContent=pContent.replace("\t","    ");
-        this.mSourceLines=pContent.split("[\\r]?\n");
-        this.mLines=Arrays.copyOf(this.mSourceLines,this.mSourceLines.length);
+        this.mLines=pContent.split("\r?\n");
+        if(this.mMode==Mode.DUMP){
+            this.mSourceLines=Arrays.copyOf(this.mLines,this.mLines.length);
+        }
     }
 
     /**
@@ -77,7 +91,7 @@ public class Composer{
      * @return 是否导入成功
      */
     public static boolean collectCommentFromString(CommentedYamlConfig pConfig,String pContent){
-        return Composer.convert(new Composer(pConfig,pContent,Mode.Export));
+        return Composer.convert(new Composer(pConfig,pContent,Mode.LOAD));
     }
 
     /**
@@ -93,7 +107,7 @@ public class Composer{
      * @return 合并后的文本
      */
     public static String putCommentToString(CommentedYamlConfig pConfig,String pContent){
-        Composer tComposer=new Composer(pConfig,pContent,Mode.Inject);
+        Composer tComposer=new Composer(pConfig,pContent,Mode.DUMP);
         Composer.convert(tComposer);
         StringBuilder builder=new StringBuilder();
         for(String sStr : tComposer.mContent){
@@ -104,12 +118,15 @@ public class Composer{
 
     /**
      * 导入或导出注释
+     * <p>
+     * 如果是Yaml节点格式分析失败,会将剩余未分析的内容写入到文本中,并且结果返回true
+     * </p>
      * 
      * @param pComposer
      *            注释管理器
      * @return 是否无错误发生
      */
-    private static boolean convert(Composer pComposer){
+    public static boolean convert(Composer pComposer){
         YamlNode tRootNode=new YamlNode();
         tRootNode.setParent(tRootNode);
         try{
@@ -199,7 +216,7 @@ public class Composer{
                         // 不可能为数组或注释,已在上面进行处理
                         break;
                     case Node_Valued:
-                        if(this.mMode==Mode.Export){
+                        if(this.mMode==Mode.LOAD){
                             this.alreadyHandleLine();
                             if(!this.mComment.isEmpty()&&(tFullPath=tConvertNode.getPathList())!=null){
                                 this.mConfig.setCommentsNoReplace(tFullPath,this.mComment);
@@ -243,7 +260,7 @@ public class Composer{
                         }
 
                         if(!tMulLine){
-                            if(this.mMode==Mode.Export){
+                            if(this.mMode==Mode.LOAD){
                                 int tIndex=tConvertNode.mValueStr.indexOf('#');
                                 if(tIndex!=-1&&(tFullPath=tConvertNode.getPathList())!=null){
 
@@ -265,7 +282,7 @@ public class Composer{
                         }
                         break;
                     case Node_Empty:
-                        if(this.mMode==Mode.Export){
+                        if(this.mMode==Mode.LOAD){
                             this.alreadyHandleLine();
                             if(tConvertNode.mValueStr!=null&&!tConvertNode.mValueStr.isEmpty()){ //带注释的无值节点
                                 this.addCacheComment(tConvertNode.mValueStr);
@@ -384,22 +401,9 @@ public class Composer{
      */
     private void alreadyHandleLine(){
         this.mLineIndex++;
-        if(this.mContent!=null){
+        if(this.mMode==Mode.DUMP){
             this.mContent.add(this.mSourceLines[this.mLineIndex]);
         }
-    }
-
-    /**
-     * 根据指定的数量生成指定长度的空白字符串
-     */
-    private String getBlank(int pCount){
-        if(pCount<=0)
-            return "";
-        StringBuilder sb=new StringBuilder();
-        while(pCount-->0){
-            sb.append(' ');
-        }
-        return sb.toString();
     }
 
     /**
@@ -413,7 +417,13 @@ public class Composer{
     private void addCommentToContent(int pSpaceLevel,ArrayList<String> pComments){
         if(pComments==null||pComments.isEmpty())
             return;
-        String tBlank=this.getBlank(pSpaceLevel)+"# ";
+
+        StringBuilder tSBuilder=new StringBuilder();
+        while(pSpaceLevel-->0){
+            tSBuilder.append(' ');
+        }
+        String tBlank=tSBuilder.append("# ").toString();
+
         for(String sComment : pComments){
             if(sComment.isEmpty()){
                 this.mContent.add(sComment);
@@ -425,7 +435,7 @@ public class Composer{
      * 添加注释缓存到{@link Composer#mComment}中,并设置{@link Composer#mLineIndex}为该注释的所在的行数<br>
      * 当识别到Node时,再将注释缓存设置到配置管理器中
      * <p>
-     * 注意此方法只在{@link Mode#Export}模式下调用
+     * 注意此方法只在{@link Mode#LOAD}模式下调用
      * </p>
      * 
      * @param pLine
@@ -448,7 +458,9 @@ public class Composer{
         this.mCommentLineIndex=this.mLineIndex;
     }
 
+    /** 缓存的空格数量 */
     private int mCachedSpaceCount=-1;
+    /** 缓存的计算空格数量的字符串 */
     private String mCachedSpaceCountStr=null;
 
     /**
@@ -467,14 +479,20 @@ public class Composer{
 
         if(this.mCachedSpaceCountStr!=pLine){
             this.mCachedSpaceCountStr=pLine;
-            char[] tLineChars=pLine.toCharArray();
-            int i=-1;
-            while(++i<tLineChars.length&&tLineChars[i]==' ');
-            if(i>=tLineChars.length||tLineChars[i]=='#'){
-                this.mCachedSpaceCount=-1;
-            }else{
-                this.mCachedSpaceCount=i;
+            int i=-1,tLen=pLine.length(),tSpaceLevel=0;
+            char tChar;
+            while(++i<tLen){
+                tChar=pLine.charAt(i);
+                if(tChar==' '){
+                    tSpaceLevel++;
+                }else if(tChar=='\t'){
+                    tSpaceLevel+=4;
+                }else if(tChar=='#'){
+                    tSpaceLevel=-1;
+                    break;
+                }else break;
             }
+            this.mCachedSpaceCount=tSpaceLevel;
         }
 
         return this.mCachedSpaceCount;
@@ -546,7 +564,7 @@ public class Composer{
         String showMsg="第"+(this.mLineIndex+2)+"行配置错误,"+pMsg+",无法导入注释\n"
                 +"请提供你的配置文件给作者以供分析格式\n"
                 +"错误内容(不包括引号) \""+this.getNextUnhandleLine()+"\"";
-        if(this.mMode==Mode.Inject){
+        if(this.mMode==Mode.DUMP){
             while(haveUnhandleLine()){
                 this.alreadyHandleLine();
             }
