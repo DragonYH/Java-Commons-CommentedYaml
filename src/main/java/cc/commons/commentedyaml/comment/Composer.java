@@ -180,17 +180,19 @@ public class Composer{
                 return;
             }
             if(tNowSpaceLevel>pParentSpaceLevel){ // 子节点或List节点的值
-                if(tNowLine.startsWith("- ",tNowSpaceLevel)){
+                String tLine=Composer.trimLeftSide(tNowLine);
+                if(tLine.startsWith("- ")){
                     //提前做转换,兼容 不规则缩进的数组值
                     this.replaceCharAndSetBack(tNowLine,tNowSpaceLevel,' ');
                     this.convertNode(tLastChild==null?pParent:tLastChild,tNowSpaceLevel);
                     this.mComment.clear();
                     continue;
-                }else if(tNowLine.startsWith("? ",tNowSpaceLevel)){
+                }else if(tLine.startsWith("? ")){
                     // Name节点非String类型
                     this.replaceCharAndSetBack(tNowLine,tNowSpaceLevel,' ');
                     tNowLine=this.getNextUnhandleLine();
-                    if(tNowLine.startsWith("!!",this.getSpaceCount(tNowLine))){
+                    tLine=Composer.trimLeftSide(tNowLine);
+                    if(tLine.startsWith("!!")){
                         this.alreadyHandleLine();
                     }
                     this.convertNode(null,tNowSpaceLevel);
