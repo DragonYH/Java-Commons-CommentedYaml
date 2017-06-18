@@ -108,12 +108,14 @@ public class Composer{
      */
     public static String putCommentToString(CommentedYamlConfig pConfig,String pContent){
         Composer tComposer=new Composer(pConfig,pContent,Mode.DUMP);
-        Composer.convert(tComposer);
-        StringBuilder builder=new StringBuilder();
-        for(String sStr : tComposer.mContent){
-            builder.append(sStr).append(Composer.mLineSeparator);
+        if(Composer.convert(tComposer)){
+            StringBuilder builder=new StringBuilder();
+            for(String sStr : tComposer.mContent){
+                builder.append(sStr).append(Composer.mLineSeparator);
+            }
+            return builder.toString();
         }
-        return builder.toString();
+        return pContent;
     }
 
     /**
