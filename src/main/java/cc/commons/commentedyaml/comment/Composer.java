@@ -90,7 +90,7 @@ public class Composer{
      *            文本
      * @return 是否导入成功
      */
-    public static boolean collectCommentFromString(CommentedYamlConfig pConfig,String pContent){
+    public static boolean loadComment(CommentedYamlConfig pConfig,String pContent){
         return Composer.convert(new Composer(pConfig,pContent,Mode.LOAD));
     }
 
@@ -106,14 +106,14 @@ public class Composer{
      *            文本
      * @return 合并后的文本
      */
-    public static String putCommentToString(CommentedYamlConfig pConfig,String pContent){
+    public static String dumpComment(CommentedYamlConfig pConfig,String pContent){
         Composer tComposer=new Composer(pConfig,pContent,Mode.DUMP);
         if(Composer.convert(tComposer)){
-            StringBuilder builder=new StringBuilder();
+            StringBuilder tSBuilder=new StringBuilder();
             for(String sStr : tComposer.mContent){
-                builder.append(sStr).append(Composer.mLineSeparator);
+                tSBuilder.append(sStr).append(Composer.mLineSeparator);
             }
-            return builder.toString();
+            return tSBuilder.toString();
         }
         return pContent;
     }
@@ -167,18 +167,12 @@ public class Composer{
         ArrayList<String> tFullPath;
         int tLastIndent=0;
         while(this.haveUnhandleLine()){
-            String tNowLine=this.getNextUnhandleLine();
-            int tNowSpaceLevel=-1;
-            while((tNowSpaceLevel=this.getSpaceCount(tNowLine))==-1){
-                this.alreadyHandleLine();
-                this.addCacheComment(tNowLine);
-                if(!this.haveUnhandleLine())
-                    return;
-                tNowLine=this.getNextUnhandleLine();
-            }
-            if(tNowSpaceLevel==pParentSpaceLevel){ // 与父节点同级
+            String tNowLine=this.getNextUnhandleLineNoComment();
+            if(tNowLine==null){
                 return;
             }
+            int tNowSpaceLevel=this.getSpaceCount(tNowLine);
+
             if(tNowSpaceLevel>pParentSpaceLevel){ // 子节点或List节点的值
                 String tLine=Composer.trimLeftSide(tNowLine);
                 if(tLine.startsWith("- ")){
@@ -220,18 +214,7 @@ public class Composer{
                         // 不可能为数组或注释,已在上面进行处理
                         break;
                     case Node_Valued:
-                        if(this.mMode==Mode.LOAD){
-                            this.alreadyHandleLine();
-                            if(!this.mComment.isEmpty()&&(tFullPath=tConvertNode.getPathList())!=null){
-                                this.mConfig.setCommentsNoReplace(tFullPath,this.mComment);
-                                this.mComment.clear();
-                            }
-                        }else{
-                            if((tFullPath=tConvertNode.getPathList())!=null){
-                                this.addCommentToContent(tNowSpaceLevel,this.mConfig.getComments(tFullPath));
-                            }
-                            this.alreadyHandleLine();
-                        }
+                        this.getOrSetComment(tConvertNode,tNowSpaceLevel);
 
                         // 读取剩余部分的值
                         Character tWarpChar=null;
@@ -241,10 +224,7 @@ public class Composer{
                         }
 
                         boolean tMulLine=tWarp;
-                        while(true){
-                            if(!this.haveUnhandleLine())
-                                return;
-
+                        while(this.haveUnhandleLine()){
                             String tNextLine=this.getNextUnhandleLine();
                             if(tWarp){
                                 tConvertNode.mValueStr+=tNextLine;
@@ -267,7 +247,6 @@ public class Composer{
                             if(this.mMode==Mode.LOAD){
                                 int tIndex=tConvertNode.mValueStr.indexOf('#');
                                 if(tIndex!=-1&&(tFullPath=tConvertNode.getPathList())!=null){
-
                                     CommentedValue tValue=this.mConfig.getCommentedValue(tFullPath);
                                     if(tValue!=null){
                                         tValue.addComments(tConvertNode.mValueStr.substring(tIndex));
@@ -286,22 +265,7 @@ public class Composer{
                         }
                         break;
                     case Node_Empty:
-                        if(this.mMode==Mode.LOAD){
-                            this.alreadyHandleLine();
-                            if(tConvertNode.mValueStr!=null&&!tConvertNode.mValueStr.isEmpty()){ //带注释的无值节点
-                                this.addCacheComment(tConvertNode.mValueStr);
-                            }
-                            if(!this.mComment.isEmpty()&&(tFullPath=tConvertNode.getPathList())!=null){
-                                this.mConfig.setCommentsNoReplace(tFullPath,this.mComment);
-                                this.mComment.clear();
-                            }
-                        }else{
-                            if((tFullPath=tConvertNode.getPathList())!=null){
-                                this.addCommentToContent(tNowSpaceLevel,this.mConfig.getComments(tFullPath));
-                            }
-                            this.alreadyHandleLine(); // 先设置注释,再调用此方法设置内容
-                        }
-
+                        this.getOrSetComment(tConvertNode,tNowSpaceLevel);
                         tLastChild=tConvertNode;
                         break;
                     case String:
@@ -321,6 +285,25 @@ public class Composer{
             }
         }
         return;
+    }
+
+    private void getOrSetComment(YamlNode pConvertNode,int pNowSpaceLevel){
+        ArrayList<String> tFullPath;
+        if(this.mMode==Mode.LOAD){
+            this.alreadyHandleLine();
+            if(pConvertNode.mType==LineType.Node_Empty&&pConvertNode.mValueStr!=null&&!pConvertNode.mValueStr.isEmpty()){
+                this.addCacheComment(pConvertNode.mValueStr);
+            }
+            if(!this.mComment.isEmpty()&&(tFullPath=pConvertNode.getPathList())!=null){
+                this.mConfig.setCommentsNoReplace(tFullPath,this.mComment);
+                this.mComment.clear();
+            }
+        }else{
+            if((tFullPath=pConvertNode.getPathList())!=null){
+                this.addCommentToContent(pNowSpaceLevel,this.mConfig.getComments(tFullPath));
+            }
+            this.alreadyHandleLine();
+        }
     }
 
     /**
@@ -370,6 +353,26 @@ public class Composer{
      */
     private boolean haveUnhandleLine(){
         return this.mLineIndex+1<this.mLines.length;
+    }
+
+    /**
+     * 获取下一行非注释的未处理的行文本,请注意使用情况
+     * <p>
+     * 如果没有下一行了,将返回null
+     * </p>
+     * 
+     * @return 文本或null
+     */
+    private String getNextUnhandleLineNoComment(){
+        String tNowLine;
+        while(this.haveUnhandleLine()){
+            tNowLine=this.getNextUnhandleLine();
+            if(this.getSpaceCount(tNowLine)==-1){
+                this.alreadyHandleLine();
+                this.addCacheComment(tNowLine);
+            }else return tNowLine;
+        }
+        return null;
     }
 
     /**
@@ -540,21 +543,23 @@ public class Composer{
                         int tStartIndex=tNameWarp?1:0;
                         tNode.mName=new String(tArrs,tStartIndex,Math.max(0,(tNameWarp?tIndex:tIndex-1)-tStartIndex));
 
-                        if(tIndex>=tArrs.length){
-                            tNode.mType=LineType.Node_Empty;
+                        tNode.mType=LineType.Node_Empty;
+                        if(tIndex>=tArrs.length)
                             return tNode;
-                        }else if(tArrs[tIndex]==' '){
-                            tNode.mType=LineType.Node_Valued;
-                            tNode.mValueStr=Composer.trimLeftSide(new String(tArrs,tIndex+1,tArrs.length-tIndex-1));
-                            if(tNode.mValueStr.startsWith("#")){
-                                tNode.mType=LineType.Node_Empty;
+
+                        tNode.mValueStr=Composer.trimLeftSide(new String(tArrs,tIndex+1,tArrs.length-tIndex-1));
+                        if(tNode.mValueStr.startsWith("#")||tNode.mValueStr.startsWith("!!")){
+                            int tCharIndex=tNode.mValueStr.indexOf('#');
+                            if(tCharIndex!=-1){
+                                tNode.mValueStr=tNode.mValueStr.substring(tCharIndex);
+                            }else{
+                                tNode.mValueStr="";
                             }
                             return tNode;
-                        }else if(tArrs[tIndex]=='#'){
-                            tNode.mType=LineType.Node_Empty;
-                            tNode.mValueStr=new String(tArrs,tIndex,tArrs.length-tIndex-1);
-                            return tNode;
                         }
+
+                        tNode.mType=LineType.Node_Valued;
+                        return tNode;
                     }
                 }
             }

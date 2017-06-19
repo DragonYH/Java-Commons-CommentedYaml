@@ -1097,10 +1097,12 @@ public class CommentedSection{
      *            分割的路径集合
      * @param pComments
      *            注释
+     * @return 是否设置了注释
      */
-    public void setCommentsNoReplace(List<String> pPath,Collection<String> pComments){
+    public boolean setCommentsNoReplace(List<String> pPath,Collection<String> pComments){
         if(pPath.isEmpty()||pComments.isEmpty())
-            return;
+            return true;
+
         CommentedValue tValue=null;
         CommentedSection tSection=this;
         Iterator<String> sIt=pPath.iterator();
@@ -1116,7 +1118,7 @@ public class CommentedSection{
                 }
             }else{
                 if(sIt.hasNext()&&!(tValue.getValue() instanceof CommentedSection)){
-                    return;
+                    return false;
                 }
             }
 
@@ -1125,6 +1127,7 @@ public class CommentedSection{
             tSection=(CommentedSection)tValue.getValue();
         }
         tValue.setComments(pComments);
+        return true;
     }
 
     /**
@@ -1173,7 +1176,7 @@ public class CommentedSection{
      * 
      * @param pPath
      *            分割的路径集合
-     * @return 注释,非null
+     * @return 注释,如果Path正确,Comment不会为null
      */
     public ArrayList<String> getComments(List<String> pPath){
         if(pPath.isEmpty())
