@@ -212,7 +212,7 @@ public class Composer{
                     case List:
                     case Comment:
                         // 不可能为数组或注释,已在上面进行处理
-                        break;
+                        throw new IllegalStateException("请报告此问题给作者,此情况不应该发生");
                     case Node_Valued:
                         this.getOrSetComment(tConvertNode,tNowSpaceLevel);
 
@@ -499,7 +499,7 @@ public class Composer{
                     break;
                 }else break;
             }
-            this.mCachedSpaceCount=tSpaceLevel;
+            this.mCachedSpaceCount=i<tLen?tSpaceLevel:-1;
         }
 
         return this.mCachedSpaceCount;
