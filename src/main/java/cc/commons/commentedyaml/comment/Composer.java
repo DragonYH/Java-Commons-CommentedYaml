@@ -181,17 +181,6 @@ public class Composer{
                     this.convertNode(tLastChild==null?pParent:tLastChild,tNowSpaceLevel);
                     this.mComment.clear();
                     continue;
-                }else if(tLine.startsWith("? ")){
-                    // Name节点非String类型
-                    this.replaceCharAndSetBack(tNowLine,tNowSpaceLevel,' ');
-                    tNowLine=this.getNextUnhandleLine();
-                    tLine=Composer.trimLeftSide(tNowLine);
-                    if(tLine.startsWith("!!")){
-                        this.alreadyHandleLine();
-                    }
-                    this.convertNode(null,tNowSpaceLevel);
-                    this.mComment.clear();
-                    continue;
                 }
 
                 if(tLastIndent==0){
@@ -205,6 +194,19 @@ public class Composer{
                         this.log("错误的缩进");// 此错误会在Yaml中检出
                         continue;
                     }
+                }
+
+                if(tLine.startsWith("? ")){
+                    // Name节点非String类型
+                    this.replaceCharAndSetBack(tNowLine,tNowSpaceLevel,' ');
+                    tNowLine=this.getNextUnhandleLine();
+                    tLine=Composer.trimLeftSide(tNowLine);
+                    if(tLine.startsWith("!!")){
+                        this.alreadyHandleLine();
+                    }
+                    this.convertNode(null,tNowSpaceLevel);
+                    this.mComment.clear();
+                    continue;
                 }
 
                 YamlNode tConvertNode=this.getLineType(pParent,tNowLine);
