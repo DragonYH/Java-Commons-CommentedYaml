@@ -1,5 +1,6 @@
 package cc.commons.commentedyaml;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -430,8 +431,14 @@ public class CommentedYamlConfig extends CommentedSection{
      */
     public boolean loadFromStream(InputStream stream){
         try{
-            byte[] contents=new byte[stream.available()];
-            this.loadFromString(new String(contents,"UTF-8"));
+            ByteArrayOutputStream tBAOStream=new ByteArrayOutputStream();
+            byte[] tBuffer=new byte[4096];
+            int tRead=-1;
+            while((tRead=stream.read(tBuffer))!=-1){
+                tBAOStream.write(tBuffer,0,tRead);
+            }
+            
+            this.loadFromString(new String(tBAOStream.toByteArray(),"UTF-8"));
         }catch(IOException ex){
             this.log("无法从输入流加载配置",ex);
             return false;

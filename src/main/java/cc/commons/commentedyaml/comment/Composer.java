@@ -49,13 +49,9 @@ public class Composer{
     private String[] mLines;
     /** 绑定的配置管理器 */
     private CommentedYamlConfig mConfig;
-<<<<<<< HEAD
     /** 当前绑定的Yaml对象 */
     private SerializableYamlObject mObject;
-    /** 当前与注释合并的文本 */
-=======
     /** 与注释合并的文本 */
->>>>>>> 942623c365cafa04a4d3fe853d8da9862148646e
     private final ArrayList<String> mContent=new ArrayList<>();
     /** 从文本中提取出且未保存到配置管理器中的注释 */
     private ArrayList<String> mComment=new ArrayList<>();
@@ -95,7 +91,7 @@ public class Composer{
      * <p>
      * 如果导入出错,导入将终止,但是已经导入的注释将会保持
      * </p>
-     * 
+     *
      * @param pConfig
      *            配置管理器
      * @param pContent
@@ -104,21 +100,6 @@ public class Composer{
      */
     public static boolean loadComment(CommentedYamlConfig pConfig,String pContent){
         return Composer.convert(new Composer(pConfig,pContent,Mode.LOAD));
-    }
-    /**
-     * 从给予的文本中搜索节点的注释,并导入到配置管理器中
-     * <p>
-     * 如果导入出错,导入将终止,但是已经导入的注释将会保持
-     * </p>
-     *
-     * @param pConfig
-     *            YAML对象
-     * @param pContent
-     *            文本
-     * @return 是否导入成功
-     */
-    public static boolean collectCommentFromString(SerializableYamlObject pConfig,String pContent){
-        return Composer.convert(new Composer(pConfig,pContent,Mode.Export));
     }
     /**
      * 将配置管理器中的注释输出并嵌入到文本中
@@ -180,7 +161,7 @@ public class Composer{
      * 此函数并未检查数组节点中的值类型是否一直<br>
      * 因为此类型的错误会在Yaml中就被检出
      * </p>
-     * 
+     *
      * @param pParent
      *            当前父节点
      * @param pParentSpace
@@ -198,7 +179,6 @@ public class Composer{
                 return;
             }
             int tNowSpaceLevel=this.getSpaceCount(tNowLine);
-
             if(tNowSpaceLevel>pParentSpaceLevel){ // 子节点或List节点的值
                 String tLine=Composer.trimLeftSide(tNowLine);
                 if(tLine.startsWith("- ")){
@@ -207,19 +187,7 @@ public class Composer{
                     this.convertNode(tLastChild==null?pParent:tLastChild,tNowSpaceLevel);
                     this.mComment.clear();
                     continue;
-                }else if(tLine.startsWith("? ")){
-                    // Name节点非String类型
-                    this.replaceCharAndSetBack(tNowLine,tNowSpaceLevel,' ');
-                    tNowLine=this.getNextUnhandleLine();
-                    tLine=Composer.trimLeftSide(tNowLine);
-                    if(tLine.startsWith("!!")){
-                        this.alreadyHandleLine();
-                    }
-                    this.convertNode(null,tNowSpaceLevel);
-                    this.mComment.clear();
-                    continue;
                 }
-
                 if(tLastIndent==0){
                     tLastIndent=tNowSpaceLevel-pParentSpaceLevel;
                 }else{
@@ -232,46 +200,32 @@ public class Composer{
                         continue;
                     }
                 }
-
+                if(tLine.startsWith("? ")){
+                    // Name节点非String类型
+                    this.replaceCharAndSetBack(tNowLine,tNowSpaceLevel,' ');
+                    tNowLine=this.getNextUnhandleLine();
+                    tLine=Composer.trimLeftSide(tNowLine);
+                    if(tLine.startsWith("!!")){
+                        this.alreadyHandleLine();
+                    }
+                    this.convertNode(null,tNowSpaceLevel);
+                    this.mComment.clear();
+                    continue;
+                }
                 YamlNode tConvertNode=this.getLineType(pParent,tNowLine);
                 switch(tConvertNode.mType){
                     case List:
                     case Comment:
                         // 不可能为数组或注释,已在上面进行处理
-                        break;
+                        throw new IllegalStateException("请报告此问题给作者,此情况不应该发生");
                     case Node_Valued:
-<<<<<<< HEAD
-                        nowNode.setParent(pParent);
-                        // 由于alreadyHandleLine会设置文本到List,所以先设置注释,再调用alreadyHandleLine();
-                        if(this.mMode==Mode.Export){
-                            this.alreadyHandleLine();
-                            if(!this.mComment.isEmpty()&&(fullPath=nowNode.getPathList())!=null){
-                                if(mConfig!=null)
-                                this.mConfig.setCommentsNoReplace(fullPath,this.mComment);
-                                if(mObject!=null)
-                                    this.mObject.add(fullPath,this.mComment);
-                                this.mComment.clear();
-                            }
-                        }else{
-                            if((fullPath=nowNode.getPathList())!=null){
-                                if(mConfig!=null)
-                                    this.addCommentToContent(pParentWeight+1,this.mConfig.getComments(fullPath));
-                                if(mObject!=null)
-                                    this.addCommentToContent(pParentWeight+1,this.mObject.get(fullPath));
-                            }
-                            this.alreadyHandleLine();
-                        }
-=======
                         this.getOrSetComment(tConvertNode,tNowSpaceLevel);
->>>>>>> 942623c365cafa04a4d3fe853d8da9862148646e
-
                         // 读取剩余部分的值
                         Character tWarpChar=null;
                         boolean tWarp=!this.isCloseLine(tConvertNode.mValueStr);
                         if(tWarp){
                             tWarpChar=tConvertNode.mValueStr.charAt(0);
                         }
-
                         boolean tMulLine=tWarp;
                         while(this.haveUnhandleLine()){
                             String tNextLine=this.getNextUnhandleLine();
@@ -291,27 +245,6 @@ public class Composer{
                                 }else break;
                             }
                         }
-
-<<<<<<< HEAD
-                        if(this.mMode==Mode.Export){
-                            this.alreadyHandleLine(); //先调用此方法移动已处理行数,用于添加注释
-                            if(tLine.mValue!=null){ //带注释的无值节点
-                                this.addCacheComment(tLine.mValue);
-                            }
-                            if(!this.mComment.isEmpty()&&(fullPath=nowNode.getPathList())!=null){
-                                if(mConfig!=null)
-                                    this.mConfig.setCommentsNoReplace(fullPath,this.mComment);
-                                if(mObject!=null)
-                                    this.mObject.add(fullPath,this.mComment);
-                                this.mComment.clear();
-                            }
-                        }else{
-                            if((fullPath=nowNode.getPathList())!=null){
-                                if(mConfig!=null)
-                                    this.addCommentToContent(pParentWeight+1,this.mConfig.getComments(fullPath));
-                                if(mObject!=null)
-                                    this.addCommentToContent(pParentWeight+1,this.mObject.get(fullPath));
-=======
                         if(!tMulLine){
                             if(this.mMode==Mode.LOAD){
                                 int tIndex=tConvertNode.mValueStr.indexOf('#');
@@ -329,7 +262,6 @@ public class Composer{
                             }
                             if(Composer.mRawMarks.contains(tConvertNode.mValueStr)){
                                 tConvertNode.mValueStr=this.readRawContent(tNowSpaceLevel);
->>>>>>> 942623c365cafa04a4d3fe853d8da9862148646e
                             }
                             tLastChild=tConvertNode;
                         }
@@ -344,7 +276,6 @@ public class Composer{
                         }else{
                             if(!this.haveUnhandleLine())
                                 return;
-
                             this.setNextUnhandleLine(tNowLine+(this.getNextUnhandleLine().trim()));
                         }
                         this.alreadyHandleLine();
@@ -569,7 +500,7 @@ public class Composer{
                     break;
                 }else break;
             }
-            this.mCachedSpaceCount=tSpaceLevel;
+            this.mCachedSpaceCount=i<tLen?tSpaceLevel:-1;
         }
 
         return this.mCachedSpaceCount;

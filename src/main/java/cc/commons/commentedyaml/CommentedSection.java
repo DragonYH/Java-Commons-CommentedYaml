@@ -256,7 +256,7 @@ public class CommentedSection{
         if(pPath==null||pPath.isEmpty())
             return null;
         ArrayList<String> childPathes=splitNoEmpty(pPath,this.mRoot.options().pathSeparator());
-        return this.getOrCreateParentSection(childPathes,pWarpKey);
+        return pCreateNew?this.getOrCreateParentSection(childPathes,pWarpKey):this.getParentSection(childPathes,pWarpKey);
     }
 
     /**
