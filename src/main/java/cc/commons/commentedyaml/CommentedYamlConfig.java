@@ -7,18 +7,25 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import cc.commons.commentedyaml.comment.Composer;
-import cc.commons.commentedyaml.serialize.SerializableYamlObject;
-import cc.commons.commentedyaml.serialize.convert.SerializableYamlUtils;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 import org.yaml.snakeyaml.error.YAMLException;
 import org.yaml.snakeyaml.representer.Representer;
+
+import cc.commons.commentedyaml.comment.Composer;
+import cc.commons.commentedyaml.serialize.SerializableYamlObject;
+import cc.commons.commentedyaml.serialize.convert.SerializableYamlUtils;
 
 /**
  * 支持注释的Yaml文件配置管理器
@@ -53,13 +60,6 @@ public class CommentedYamlConfig extends CommentedSection{
     protected static Class<? extends CommentedRepresenter> mRepresenterClazz=CommentedRepresenter.class;
     /** 构造类 */
     protected static Class<? extends CommentedConstructor> mConstructorClazz=CommentedConstructor.class;
-
-    /** Yaml加载器,非线程安全 */
-    protected final Yaml mYaml;
-    /** 配置管理器,Yaml Dump选项 */
-    protected final CommentedOptions mOptions;
-    /** 仅用于加载,非线程安全 */
-    protected final Representer mConfigRepresenter;
 
     /**
      * 设置错误日志记录器
@@ -134,6 +134,17 @@ public class CommentedYamlConfig extends CommentedSection{
         }
     }
 
+    private static String listToPath(Collection<String> pPathParts){
+        if(pPathParts==null||pPathParts.isEmpty())
+            return "";
+
+        StringBuilder tSBuilder=new StringBuilder();
+        for(String sPath : pPathParts){
+            tSBuilder.append(sPath).append('.');
+        }
+        return tSBuilder.deleteCharAt(tSBuilder.length()-1).toString();
+    }
+
     /**
      * 载入配置文件
      * 
@@ -160,6 +171,15 @@ public class CommentedYamlConfig extends CommentedSection{
         tConfig.loadFromFile(pFile);
         return tConfig;
     }
+
+    /** Yaml加载器,非线程安全 */
+    protected final Yaml mYaml;
+    /** 配置管理器,Yaml Dump选项 */
+    protected final CommentedOptions mOptions;
+    /** 仅用于加载,非线程安全 */
+    protected final Representer mConfigRepresenter;
+    /** 缓存的注释,为那些路径被阻断的注释节点保存的注释 */
+    protected final HashMap<String,ArrayList<String>> mCachedComment=new HashMap<>();
 
     /**
      * 使用指定的消息前缀实例化配置管理器
@@ -228,7 +248,7 @@ public class CommentedYamlConfig extends CommentedSection{
             return "";
 
         if(this.options().isEnableComment()){
-            return Composer.putCommentToString(this,tDumpValue);
+            return Composer.dumpComment(this,tDumpValue);
         }else return tDumpValue;
     }
 
@@ -327,7 +347,7 @@ public class CommentedYamlConfig extends CommentedSection{
         this.clear();
         this.convertMapsToSections(input,this);
         if(this.options().isEnableComment()){
-            Composer.collectCommentFromString(this,pContents);
+            Composer.loadComment(this,pContents);
         }
     }
 
@@ -448,6 +468,68 @@ public class CommentedYamlConfig extends CommentedSection{
      */
     public CommentedOptions options(){
         return this.mOptions;
+    }
+
+    public void addCacheComment(List<String> pPath,Collection<String> pComments){
+        this.addCacheComment(listToPath(pPath),pComments);
+    }
+
+    public void addCacheComment(String pPath,Collection<String> pComments){
+        if(!pComments.isEmpty()){
+            this.mCachedComment.put(pPath,new ArrayList<String>(pComments));
+        }
+    }
+
+    @Override
+    public boolean setCommentsNoReplace(List<String> pPath,Collection<String> pComments){
+        if(super.setCommentsNoReplace(pPath,pComments))
+            return true;
+
+        this.mCachedComment.put(listToPath(pPath),new ArrayList<String>(pComments));
+        return true;
+    }
+
+    @Override
+    public ArrayList<String> getComments(List<String> pPath){
+        ArrayList<String> tComments=super.getComments(pPath);
+        if(tComments==null||tComments.isEmpty()){
+            tComments=this.mCachedComment.get(listToPath(pPath));
+        }
+        return tComments;
+    }
+
+    @Override
+    public Object remove(String pPath){
+        Object tValue=super.remove(pPath);
+        if(!this.mCachedComment.isEmpty()){
+            Iterator<Map.Entry<String,ArrayList<String>>> tEntryIt=this.mCachedComment.entrySet().iterator();
+            while(tEntryIt.hasNext()){
+                Entry<String,ArrayList<String>> tEntry=tEntryIt.next();
+                String tKey=tEntry.getKey();
+                if(tKey.startsWith(pPath)){
+                    if(tKey.length()>pPath.length()&&tKey.charAt(pPath.length())!='.')
+                        continue;
+                    tEntryIt.remove();
+                }
+            }
+        }
+        return tValue;
+    }
+
+    @Override
+    public void set(String pPath,Object pValue,String...pComments){
+        ArrayList<String> tComments=this.mCachedComment.remove(pPath);
+        if(pComments.length==0&&tComments!=null&&!tComments.isEmpty()){
+            pComments=tComments.toArray(new String[tComments.size()]);
+        }
+        super.set(pPath,pValue,pComments);
+    }
+
+    @Override
+    public Map<String,CommentedValue> clear(){
+        Map<String,CommentedValue> tValues=super.clear();
+        this.mCachedComment.clear();
+        return tValues;
     }
 
 }

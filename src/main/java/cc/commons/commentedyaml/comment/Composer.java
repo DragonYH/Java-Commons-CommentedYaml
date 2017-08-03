@@ -4,45 +4,62 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 
+import cc.commons.commentedyaml.CommentedValue;
 import cc.commons.commentedyaml.CommentedYamlConfig;
 import cc.commons.commentedyaml.serialize.SerializableYamlObject;
 
 enum Mode{
     /** 将配置管理器中的注释导入到dump出来的字符串中 */
-    Inject,
+    DUMP,
     /** 从字符串中读取出注释 */
-    Export
+    LOAD
 }
 
 public class Composer{
 
+    private final static String mLineSeparator=System.getProperty("line.separator","\r\n");
     /** Yaml节点边界符号 */
     private final static HashSet<Character> mWrapChars;
     /** Yaml源格式字符标识 */
     private final static HashSet<String> mRawMarks;
-    /** Yaml单个权重的缩进量,由处理文本时自动确定 */
-    private int mIndent=0;
     /**
+     * 已经处理完毕的文本的最后一行索引
+     * <p>
      * 请勿直接调用该变量<br>
      * 使用{@link Composer#alreadyHandleLine()}来更改已经处理的当前行<br>
      * 使用{@link Composer#getNextUnhandleLine()}来获取下一行未处理的文本<br>
      * 使用{@link Composer#haveUnhandleLine()}来判断是否已经处理完所有行文本<br>
+     * </p>
      */
     @Deprecated
     private int mLineIndex=-1;
-    /** 原文本的行 */
+    /**
+     * 原文本的行
+     * <p>
+     * 在{@link Mode#DUMP}模式中,函数{@link #alreadyHandleLine()}会使用到此内容来写入到{@link #mContent}
+     * </p>
+     */
     private String[] mSourceLines;
-    /** 原文本的行,内容可能会在程序处理过程中发生变化 */
+    /**
+     * 原文本的行
+     * <p>
+     * 内容可能会在程序处理过程中发生变化
+     * </p>
+     */
     private String[] mLines;
-    /** 当前绑定的配置管理器 */
+    /** 绑定的配置管理器 */
     private CommentedYamlConfig mConfig;
+<<<<<<< HEAD
     /** 当前绑定的Yaml对象 */
     private SerializableYamlObject mObject;
     /** 当前与注释合并的文本 */
+=======
+    /** 与注释合并的文本 */
+>>>>>>> 942623c365cafa04a4d3fe853d8da9862148646e
     private final ArrayList<String> mContent=new ArrayList<>();
-    /** 当前从文本中提取出且未保存到配置管理器中的注释 */
+    /** 从文本中提取出且未保存到配置管理器中的注释 */
     private ArrayList<String> mComment=new ArrayList<>();
-    /** 当前最后一条缓存的注释所在的行数 */
+    /** 最后一条缓存的注释所在的行数 */
     private int mCommentLineIndex=-1;
     /** 注释操作模式 */
     private Mode mMode;
@@ -61,8 +78,11 @@ public class Composer{
         this.mMode=pMode;
         this.mConfig=pConfig;
 
-        this.mSourceLines=pContent.split("[\\r]?\n");
-        this.mLines=Arrays.copyOf(this.mSourceLines,this.mSourceLines.length);
+        pContent=pContent.replace("\t","    ");
+        this.mLines=pContent.split("\r?\n");
+        if(this.mMode==Mode.DUMP){
+            this.mSourceLines=Arrays.copyOf(this.mLines,this.mLines.length);
+        }
     }
     private Composer(SerializableYamlObject pObject,String pContent,Mode pMode){
         this.mMode=pMode;
@@ -82,8 +102,8 @@ public class Composer{
      *            文本
      * @return 是否导入成功
      */
-    public static boolean collectCommentFromString(CommentedYamlConfig pConfig,String pContent){
-        return Composer.convert(new Composer(pConfig,pContent,Mode.Export));
+    public static boolean loadComment(CommentedYamlConfig pConfig,String pContent){
+        return Composer.convert(new Composer(pConfig,pContent,Mode.LOAD));
     }
     /**
      * 从给予的文本中搜索节点的注释,并导入到配置管理器中
@@ -112,34 +132,41 @@ public class Composer{
      *            文本
      * @return 合并后的文本
      */
-    public static String putCommentToString(CommentedYamlConfig pConfig,String pContent){
-        Composer tComposer=new Composer(pConfig,pContent,Mode.Inject);
-        Composer.convert(tComposer);
-        StringBuilder builder=new StringBuilder();
-        for(String sStr : tComposer.mContent){
-            builder.append(sStr);
-            builder.append(System.getProperty("line.separator","\r\n"));
+    public static String dumpComment(CommentedYamlConfig pConfig,String pContent){
+        Composer tComposer=new Composer(pConfig,pContent,Mode.DUMP);
+        if(Composer.convert(tComposer)){
+            StringBuilder tSBuilder=new StringBuilder();
+            for(String sStr : tComposer.mContent){
+                tSBuilder.append(sStr).append(Composer.mLineSeparator);
+            }
+            return tSBuilder.toString();
         }
-        return builder.toString();
+        return pContent;
     }
+
     /**
      * 导入或导出注释
+     * <p>
+     * 如果是Yaml节点格式分析失败,会将剩余未分析的内容写入到文本中,并且结果返回true
+     * </p>
      * 
      * @param pComposer
      *            注释管理器
      * @return 是否无错误发生
      */
-    private static boolean convert(Composer pComposer){
-        YamlNode rootNode=new YamlNode();
-        rootNode.mName="";
-        rootNode.setParent(rootNode);
+    public static boolean convert(Composer pComposer){
+        YamlNode tRootNode=new YamlNode();
+        tRootNode.setParent(tRootNode);
         try{
             while(pComposer.haveUnhandleLine()){
-                pComposer.convertNode(rootNode,-1);
+                pComposer.convertNode(tRootNode,-1);
             }
         }catch(IllegalStateException exp){
             CommentedYamlConfig.getLogger().severe(exp.getMessage());
-            return false;
+            while(pComposer.haveUnhandleLine()){
+                pComposer.alreadyHandleLine();
+            }
+            return true;
         }catch(Throwable exp){
             CommentedYamlConfig.getLogger().severe("导入导出配置文件注释时发生了错误",exp);
             return false;
@@ -148,124 +175,72 @@ public class Composer{
     }
 
     /**
-     * 测试用函数
-     */
-    @Deprecated
-    private YamlNode getMapValue(){
-        YamlNode rootNode=new YamlNode();
-        rootNode.mName="";
-        while(this.mLineIndex<this.mLines.length){
-            this.convertNode(rootNode,-1);
-        }
-        return rootNode;
-    }
-
-    /**
-     * 转换当前行为数组
+     * 转换节点
+     * <p>
+     * 此函数并未检查数组节点中的值类型是否一直<br>
+     * 因为此类型的错误会在Yaml中就被检出
+     * </p>
      * 
-     * @param pWeight
-     *            当前行权重
-     * @param pListDeep
-     *            当前行数组深度
-     * @param pLine
-     *            当前行内容
-     * @return 转换成的数组或字符串或其他嵌套
+     * @param pParent
+     *            当前父节点
+     * @param pParentSpace
+     *            父节点的空格数量,root节点为-1
+     * @param pParentWeight
+     *            父节点的权重,root节点为-1
      */
-    private Object convertList(int pWeight,int pListDeep,String pLine){
-        ArrayList<Object> listValue=new ArrayList<>();
-        while(true){
-            if(!this.isCloseLine(pLine)){
-                String partLine=null;
-                this.alreadyHandleLine();
-                if(!this.haveUnhandleLine()){
-                    this.log("行未闭合");
-                    return pLine+pLine.charAt(0);
-                }
-                partLine=this.getNextUnhandleLine();
-                pLine+=partLine.trim();
-            }
-            LineObject tLine=this.getLineType(pLine);
-            switch(tLine.mLineType){
-                case Comment:
-                    this.log("#字符必须包裹在单引号之间,或List的值后不能添加注释");
-                    return "''";
-                case List:
-                    listValue.add(this.convertList(pWeight,pListDeep+1,tLine.mValue));
-                    break;
-                case Node_Empty:
-                    this.setNextUnhandleLine(this.getBlank(this.mIndent*(pWeight+pListDeep))+tLine.mName+":");
-                    return this.convertNode(null,pWeight+pListDeep-1);
-                case Node_Valued:
-                    this.setNextUnhandleLine(this.getBlank(this.mIndent*(pWeight+pListDeep))+tLine.mName+": "+tLine.mValue);
-                    return this.convertNode(null,pWeight+pListDeep-1);
-                case String:
-                    this.alreadyHandleLine();
-                    if(this.isCloseLine(tLine.mValue))
-                        return tLine.mValue;
-                    else{
-                        this.setNextUnhandleLine(this.getBlank(this.mIndent*(pWeight+pListDeep))+tLine.mValue+(this.getNextUnhandleLine().trim()));
-                        break;
-                    }
-            }
-            while(true){
-                if(!this.haveUnhandleLine())
-                    return listValue;
-                pLine=this.getNextUnhandleLine();
-                int tWeight=-1;
-                while((tWeight=this.getWeight(pLine))==-1){
-                    this.alreadyHandleLine();
-                    this.addCacheComment(pLine);
-                    if(!this.haveUnhandleLine())
-                        return listValue;
-                    pLine=this.getNextUnhandleLine();
-                }
-                if(tWeight==pWeight+pListDeep){ // 同级别的行,在本函数中处理
-                    break;
-                }else if(tWeight>pWeight+pListDeep){
-                    this.log("缩进错误");
-                    this.alreadyHandleLine();
-                    continue;
-                }else{ // 高级别行,在上个函数中处理
-                    return listValue;
-                }
-            }
-        }
-    }
-
-    private Object convertNode(YamlNode pParent,int pParentWeight){
-        YamlNode lastChild=null;
-        String nowLine;
-        ArrayList<String> fullPath;
+    private void convertNode(YamlNode pParent,int pParentSpaceLevel){
+        YamlNode tLastChild=null; // 用于转换List节点时使用 
+        ArrayList<String> tFullPath;
+        int tLastIndent=0;
         while(this.haveUnhandleLine()){
-            nowLine=this.getNextUnhandleLine();
-            int tWeight=-1;
-            while((tWeight=this.getWeight(nowLine))==-1){
-                this.alreadyHandleLine();
-                this.addCacheComment(nowLine);
-                if(!this.haveUnhandleLine())
-                    return lastChild;
-                nowLine=this.getNextUnhandleLine();
+            String tNowLine=this.getNextUnhandleLineNoComment();
+            if(tNowLine==null){
+                return;
             }
-            if(tWeight==pParentWeight){ // 与父节点同级
-                return lastChild;
-            }
-            if(tWeight==pParentWeight+1){ // 直接子节点
-                YamlNode nowNode=new YamlNode();
-                LineObject tLine=this.getLineType(nowLine);
-                nowNode.mName=tLine.mName;
-                switch(tLine.mLineType){ // 此处不可能是注释节点
-                    case List:
-                        if(lastChild==null){
-                            this.log("错误的缩进");
-                            this.alreadyHandleLine();
-                            continue;
-                        }
-                        this.convertList(pParentWeight+1,1,tLine.mValue);
+            int tNowSpaceLevel=this.getSpaceCount(tNowLine);
+
+            if(tNowSpaceLevel>pParentSpaceLevel){ // 子节点或List节点的值
+                String tLine=Composer.trimLeftSide(tNowLine);
+                if(tLine.startsWith("- ")){
+                    //提前做转换,兼容 不规则缩进的数组值
+                    this.replaceCharAndSetBack(tNowLine,tNowSpaceLevel,' ');
+                    this.convertNode(tLastChild==null?pParent:tLastChild,tNowSpaceLevel);
+                    this.mComment.clear();
+                    continue;
+                }else if(tLine.startsWith("? ")){
+                    // Name节点非String类型
+                    this.replaceCharAndSetBack(tNowLine,tNowSpaceLevel,' ');
+                    tNowLine=this.getNextUnhandleLine();
+                    tLine=Composer.trimLeftSide(tNowLine);
+                    if(tLine.startsWith("!!")){
+                        this.alreadyHandleLine();
+                    }
+                    this.convertNode(null,tNowSpaceLevel);
+                    this.mComment.clear();
+                    continue;
+                }
+
+                if(tLastIndent==0){
+                    tLastIndent=tNowSpaceLevel-pParentSpaceLevel;
+                }else{
+                    int tIndent=tNowSpaceLevel-pParentSpaceLevel;
+                    if(tIndent>tLastIndent){
+                        this.convertNode(tLastChild,pParentSpaceLevel+tLastIndent);
                         continue;
+                    }else if(tIndent<tLastIndent){
+                        this.log("错误的缩进");// 此错误会在Yaml中检出
+                        continue;
+                    }
+                }
+
+                YamlNode tConvertNode=this.getLineType(pParent,tNowLine);
+                switch(tConvertNode.mType){
+                    case List:
                     case Comment:
-                        // 不可能为注释
+                        // 不可能为数组或注释,已在上面进行处理
                         break;
                     case Node_Valued:
+<<<<<<< HEAD
                         nowNode.setParent(pParent);
                         // 由于alreadyHandleLine会设置文本到List,所以先设置注释,再调用alreadyHandleLine();
                         if(this.mMode==Mode.Export){
@@ -286,34 +261,38 @@ public class Composer{
                             }
                             this.alreadyHandleLine();
                         }
+=======
+                        this.getOrSetComment(tConvertNode,tNowSpaceLevel);
+>>>>>>> 942623c365cafa04a4d3fe853d8da9862148646e
 
                         // 读取剩余部分的值
-                        if(!this.isCloseLine(tLine.mValue)){
-                            char tWarpChar=tLine.mValue.trim().charAt(0);
-                            Character tCloseMark=null;
-                            String partLine=null;
-                            do{
-                                if(!this.haveUnhandleLine()){
-                                    this.log("行未闭合");
-                                    return nowNode;
-                                }
-                                partLine=this.getNextUnhandleLine();
-                                tLine.mValue+=partLine.trim();
+                        Character tWarpChar=null;
+                        boolean tWarp=!this.isCloseLine(tConvertNode.mValueStr);
+                        if(tWarp){
+                            tWarpChar=tConvertNode.mValueStr.charAt(0);
+                        }
+
+                        boolean tMulLine=tWarp;
+                        while(this.haveUnhandleLine()){
+                            String tNextLine=this.getNextUnhandleLine();
+                            if(tWarp){
+                                tConvertNode.mValueStr+=tNextLine;
                                 this.alreadyHandleLine();
-                                tCloseMark=this.getCloseMark(partLine);
-                            }while(tCloseMark==null||!tCloseMark.equals(tWarpChar));
+                                Character tCloseMark=this.getCloseMark(tNextLine,false);
+                                if(tCloseMark!=null&&tCloseMark.equals(tWarpChar)){
+                                    break;
+                                }
+                            }else{
+                                int tNextSpace=this.getSpaceCount(tNextLine);
+                                if(tNextSpace>tNowSpaceLevel){
+                                    tConvertNode.mValueStr+=" "+tNextLine.trim();
+                                    this.alreadyHandleLine();
+                                    tMulLine=true;
+                                }else break;
+                            }
                         }
 
-                        // 是不是raw格式
-                        if(Composer.mRawMarks.contains(tLine.mValue)){
-                            tLine.mValue=this.readRawContent(pParentWeight+1);
-                        }
-                        if(tLine.mValue.startsWith("!!")&&tLine.mValue.length()>2){
-                            lastChild=nowNode;
-                        }else return nowNode;
-                    case Node_Empty:
-                        nowNode.setParent(pParent);
-
+<<<<<<< HEAD
                         if(this.mMode==Mode.Export){
                             this.alreadyHandleLine(); //先调用此方法移动已处理行数,用于添加注释
                             if(tLine.mValue!=null){ //带注释的无值节点
@@ -332,88 +311,111 @@ public class Composer{
                                     this.addCommentToContent(pParentWeight+1,this.mConfig.getComments(fullPath));
                                 if(mObject!=null)
                                     this.addCommentToContent(pParentWeight+1,this.mObject.get(fullPath));
+=======
+                        if(!tMulLine){
+                            if(this.mMode==Mode.LOAD){
+                                int tIndex=tConvertNode.mValueStr.indexOf('#');
+                                if(tIndex!=-1&&(tFullPath=tConvertNode.getPathList())!=null){
+                                    CommentedValue tValue=this.mConfig.getCommentedValue(tFullPath);
+                                    if(tValue!=null){
+                                        tValue.addComments(tConvertNode.mValueStr.substring(tIndex));
+                                    }else{
+                                        this.mComment.add(tConvertNode.mValueStr.substring(tIndex));
+                                        this.mConfig.setCommentsNoReplace(tFullPath,this.mComment);
+                                        this.mComment.clear();
+                                    }
+                                    this.mComment.clear();
+                                }
                             }
-                            this.alreadyHandleLine(); // 先设置注释,再调用此方法设置内容
+                            if(Composer.mRawMarks.contains(tConvertNode.mValueStr)){
+                                tConvertNode.mValueStr=this.readRawContent(tNowSpaceLevel);
+>>>>>>> 942623c365cafa04a4d3fe853d8da9862148646e
+                            }
+                            tLastChild=tConvertNode;
                         }
-
-                        lastChild=nowNode;
+                        break;
+                    case Node_Empty:
+                        this.getOrSetComment(tConvertNode,tNowSpaceLevel);
+                        tLastChild=tConvertNode;
                         break;
                     case String:
-                        this.alreadyHandleLine();
-                        if(this.isCloseLine(tLine.mValue)){
-                            this.log("此处不应该有"+nowLine+",是否缺少冒号?");
-                            continue;
+                        if(this.isCloseLine(tConvertNode.mValueStr)){
+                            // this.log("此处不应该有"+tNowLine+",是否缺少冒号?");
                         }else{
-                            if(!this.haveUnhandleLine()){
-                                this.log("行未闭合");
-                                continue;
-                            }
-                            this.setNextUnhandleLine(this.getBlank(this.mIndent*(pParentWeight+1))+tLine.mValue+(this.getNextUnhandleLine().trim()));
-                            continue;
+                            if(!this.haveUnhandleLine())
+                                return;
+
+                            this.setNextUnhandleLine(tNowLine+(this.getNextUnhandleLine().trim()));
                         }
+                        this.alreadyHandleLine();
+                        break;
                 }
-            }else if(tWeight==pParentWeight+2){ // 孙子节点
-                if(lastChild==null){
-                    this.log("错误的缩进");
-                    this.alreadyHandleLine();
-                    continue;
-                }
-                this.convertNode(lastChild,pParentWeight+1);
-            }else if(tWeight<pParentWeight){ // 上级节点
-                if(lastChild==null){
-                    this.log("错误的缩进");
-                    this.alreadyHandleLine();
-                    continue;
-                }
-                return lastChild;
-            }else{ // 下下...级节点,缩进过多
-                this.log("错误的缩进");
-                this.alreadyHandleLine();
-                continue;
+            }else{ // 与父节点同级或更上级节点,交由上一层处理
+                return;
             }
         }
-        return null;
+        return;
+    }
+
+    private void getOrSetComment(YamlNode pConvertNode,int pNowSpaceLevel){
+        ArrayList<String> tFullPath;
+        if(this.mMode==Mode.LOAD){
+            this.alreadyHandleLine();
+            if(pConvertNode.mType==LineType.Node_Empty&&pConvertNode.mValueStr!=null&&!pConvertNode.mValueStr.isEmpty()){
+                this.addCacheComment(pConvertNode.mValueStr);
+            }
+            if(!this.mComment.isEmpty()&&(tFullPath=pConvertNode.getPathList())!=null){
+                this.mConfig.setCommentsNoReplace(tFullPath,this.mComment);
+                this.mComment.clear();
+            }
+        }else{
+            if((tFullPath=pConvertNode.getPathList())!=null){
+                this.addCommentToContent(pNowSpaceLevel,this.mConfig.getComments(tFullPath));
+            }
+            this.alreadyHandleLine();
+        }
+    }
+
+    /**
+     * 将字符串指定位置的点设置为指定的字符后,并设置会待处理内容队列
+     * 
+     * @param pLine
+     *            内容
+     * @param pIndex
+     *            设置的位置
+     * @param pChar
+     *            设置成的字符
+     */
+    private void replaceCharAndSetBack(String pLine,int pIndex,char pChar){
+        char[] tArrs=pLine.toCharArray();
+        tArrs[pIndex]=pChar;
+        this.setNextUnhandleLine(new String(tArrs));
     }
 
     /**
      * 读取从当前行开始的raw内容
      * 
-     * @param pWeight
-     *            父节点的权重
+     * @param pParentSpace
+     *            父节点的空格数量
      * @return 读取的内容
      */
-    private String readRawContent(int pWeight){
-        int minBlackCount=pWeight*this.mIndent,currentBlackCount=-1;
-        StringBuilder rawContent=new StringBuilder();
+    private String readRawContent(int pParentSpace){
+        int tMinSpaceCount=pParentSpace+1;
+        StringBuilder tRawContent=new StringBuilder();
         while(this.haveUnhandleLine()){
             String tLineContent=this.getNextUnhandleLine();
-            if(this.isBlank(tLineContent)){//空白行忽略
-                this.alreadyHandleLine();
-                continue;
-            }
-            int tIndex;
-            for(tIndex=0;tIndex<tLineContent.length();tIndex++){
-                if(tLineContent.charAt(tIndex)!=' ')
-                    break;
-            }
-            if(tIndex<=minBlackCount) // raw文本结束
+            int tSpaceCount=this.getSpaceCount(tLineContent);
+            if(tSpaceCount<tMinSpaceCount)
                 break;
 
-            if(currentBlackCount==-1){
-                currentBlackCount=tIndex;
-            }
+            tRawContent.append(tLineContent.substring(tMinSpaceCount)).append('\n');
 
-            if(rawContent.length()!=0)
-                rawContent.append("\n");
-            try{
-                rawContent.append(tLineContent.substring(currentBlackCount));
-            }catch(IndexOutOfBoundsException exp){
-                // 此处配置已经出现了错误
-                rawContent.append(tLineContent.substring(tIndex));
-            }
             this.alreadyHandleLine();
         }
-        return rawContent.toString();
+        if(tRawContent.length()!=0){
+            tRawContent.setLength(tRawContent.length()-1);
+        }
+        return tRawContent.toString();
     }
 
     /**
@@ -421,6 +423,26 @@ public class Composer{
      */
     private boolean haveUnhandleLine(){
         return this.mLineIndex+1<this.mLines.length;
+    }
+
+    /**
+     * 获取下一行非注释的未处理的行文本,请注意使用情况
+     * <p>
+     * 如果没有下一行了,将返回null
+     * </p>
+     * 
+     * @return 文本或null
+     */
+    private String getNextUnhandleLineNoComment(){
+        String tNowLine;
+        while(this.haveUnhandleLine()){
+            tNowLine=this.getNextUnhandleLine();
+            if(this.getSpaceCount(tNowLine)==-1){
+                this.alreadyHandleLine();
+                this.addCacheComment(tNowLine);
+            }else return tNowLine;
+        }
+        return null;
     }
 
     /**
@@ -456,45 +478,41 @@ public class Composer{
      */
     private void alreadyHandleLine(){
         this.mLineIndex++;
-        if(this.mContent!=null){
+        if(this.mMode==Mode.DUMP){
             this.mContent.add(this.mSourceLines[this.mLineIndex]);
         }
     }
 
     /**
-     * 根据指定的数量生成指定长度的空白字符串
-     */
-    private String getBlank(int pCount){
-        if(pCount<=0)
-            return "";
-        StringBuilder sb=new StringBuilder();
-        while(pCount-->0){
-            sb.append(' ');
-        }
-        return sb.toString();
-    }
-
-    /**
      * 添加注释内容{@link Composer#mContent}中
      * 
-     * @param pWeight
+     * @param pParentSpace
      *            注释行的权重
      * @param pComments
      *            注释文本
      */
-    private void addCommentToContent(int pWeight,ArrayList<String> pComments){
+    private void addCommentToContent(int pSpaceLevel,ArrayList<String> pComments){
         if(pComments==null||pComments.isEmpty())
             return;
-        String blackPrefix=this.getBlank(pWeight*this.mIndent)+"# ";
-        for(String commentLine : pComments)
-            this.mContent.add(blackPrefix+commentLine);
+
+        StringBuilder tSBuilder=new StringBuilder();
+        while(pSpaceLevel-->0){
+            tSBuilder.append(' ');
+        }
+        String tBlank=tSBuilder.append("# ").toString();
+
+        for(String sComment : pComments){
+            if(sComment.isEmpty()){
+                this.mContent.add(sComment);
+            }else this.mContent.add(tBlank+sComment);
+        }
     }
 
     /**
      * 添加注释缓存到{@link Composer#mComment}中,并设置{@link Composer#mLineIndex}为该注释的所在的行数<br>
      * 当识别到Node时,再将注释缓存设置到配置管理器中
      * <p>
-     * 注意此方法只在{@link Mode#Export}模式下调用
+     * 注意此方法只在{@link Mode#LOAD}模式下调用
      * </p>
      * 
      * @param pLine
@@ -505,164 +523,127 @@ public class Composer{
             this.mComment.clear();
         }
 
-        int startPos=0;
-        char tc;
-        for(;startPos<pLine.length();startPos++){
-            tc=pLine.charAt(startPos);
-            if(tc!=' '){
-                if(tc=='#'){
-                    startPos++;
-                    if(pLine.length()>startPos&&pLine.charAt(startPos)==' ')
-                        startPos++;
-                }
-                break;
-            }
+        String tLine=Composer.trimLeftSide(pLine);
+        int tIndex=0;
+        if(tLine.length()>0&&tLine.charAt(0)=='#'){
+            tIndex++;
+            if(tLine.length()>1&&tLine.charAt(1)==' ')
+                tIndex++;
         }
 
-        if(startPos>=pLine.length()){ //全空格
-            this.mComment.add(pLine);
-        }else{
-            this.mComment.add(pLine.substring(startPos));
-        }
+        this.mComment.add(tLine.substring(tIndex));
         this.mCommentLineIndex=this.mLineIndex;
     }
 
+    /** 缓存的空格数量 */
+    private int mCachedSpaceCount=-1;
+    /** 缓存的计算空格数量的字符串 */
+    private String mCachedSpaceCountStr=null;
+
     /**
-     * 获取行的权重
+     * 获取空格数量
      * <p>
-     * 如果返回-1,说明该行是注释行
+     * 如果返回-1,说明该行是注释行或者为空行
      * </p>
      * 
      * @param pLine
      *            行
-     * @return 权重
+     * @return 该行空格数量
      */
-    private int getWeight(String pLine){
-        if(this.isBlank(pLine))
+    private int getSpaceCount(String pLine){
+        if(pLine==null||pLine.isEmpty())
             return -1;
-        char[] tLineChars=pLine.toCharArray();
-        int i=0,weight=-1;
-        for(;i<tLineChars.length;i++)
-            if(tLineChars[i]!=' ')
-                break;
-        if(i==0)
-            weight=0;
-        else{
-            if(this.mIndent==0)
-                this.mIndent=i;
-            weight=i/this.mIndent;
+
+        if(this.mCachedSpaceCountStr!=pLine){
+            this.mCachedSpaceCountStr=pLine;
+            int i=-1,tLen=pLine.length(),tSpaceLevel=0;
+            char tChar;
+            while(++i<tLen){
+                tChar=pLine.charAt(i);
+                if(tChar==' '){
+                    tSpaceLevel++;
+                }else if(tChar=='\t'){
+                    tSpaceLevel+=4;
+                }else if(tChar=='#'){
+                    tSpaceLevel=-1;
+                    break;
+                }else break;
+            }
+            this.mCachedSpaceCount=tSpaceLevel;
         }
-        if(tLineChars[i]=='#')
-            return -1;
-        else return weight;
+
+        return this.mCachedSpaceCount;
     }
 
-    private LineObject getLineType(String pLine){
+    private YamlNode getLineType(YamlNode pParent,String pLine){
+        YamlNode tNode=new YamlNode();
+        tNode.setParent(pParent);
         pLine=pLine.trim();
 
-        LineObject tLine=new LineObject();
-        if(this.isBlank(pLine)){
-            tLine.mLineType=LineType.Comment;
-            tLine.mValue=pLine;
-            return tLine;
-        }
-
-        if(pLine.charAt(0)=='#'){
-            tLine.mLineType=LineType.Comment;
-            if(pLine.length()>=2&&pLine.charAt(1)==' ')
-                tLine.mValue=pLine.substring(2);
-            else tLine.mValue=pLine.substring(1);
-            return tLine;
-        }else if(pLine.length()>=2&&pLine.charAt(0)=='-'&&pLine.charAt(1)==' '){
-            tLine.mLineType=LineType.List;
-
-            int tPos=2;
-            for(;tPos<pLine.length();tPos++)
-                if(pLine.charAt(tPos)!=' ')
-                    break;
-            if(tPos>=pLine.length()){
-                tLine.mValue=new String();
-            }else{
-                tLine.mValue=pLine.substring(tPos);
-            }
-
-            return tLine;
+        if(pLine.isEmpty()||pLine.charAt(0)=='#'){
+            tNode.mType=LineType.Comment;
+            tNode.mValueStr=pLine;
+        }else if(pLine.startsWith("- ")){
+            tNode.mType=LineType.List;
         }else{
-            char[] arrs=pLine.toCharArray();
-            int i=1;
-            char tWarpChar=arrs[0];
-            boolean warp=Composer.mWrapChars.contains(tWarpChar);
-            boolean tNameWarp=warp;
-            while(i<arrs.length){
-                char c=arrs[i++];
-                if(warp){
+            char[] tArrs=pLine.toCharArray();
+            int tIndex=0;
+            char tWarpChar=tArrs[0];
+            boolean tWarp=Composer.mWrapChars.contains(tWarpChar);
+            boolean tNameWarp=tWarp;
+            tIndex+=tWarp?1:0;
+            while(tIndex<tArrs.length){
+                char c=tArrs[tIndex++];
+                if(tWarp){
                     if(c==tWarpChar){
-                        if(i>=arrs.length)
+                        if(tIndex>=tArrs.length)
                             break; // 没字符了,作为字符串处理
                         if(tWarpChar=='\''){
-                            if(arrs[i]!=tWarpChar){
-                                warp=false; // '后面不是单引号,warp到尾部
-                                if(arrs[i]!=':'){
-                                    this.log("第"+this.mLineIndex+"可能配置错误,缺少冒号?");
-                                }
-                            }else i++; // 如果是单引号,跳过这个字符的检查
+                            if(tArrs[tIndex]!=tWarpChar){
+                                tWarp=false; // '后面不是单引号,warp到尾部
+                            }else tIndex++; // 如果是两个单引号,跳过这个字符的检查
                         }else{ // 检查是否进行\转义
-                            if(i>1&&arrs[i-1]=='\\')
+                            if(tIndex>1&&tArrs[tIndex-1]=='\\')
                                 ; // \转义了
-                            else warp=false;
+                            else tWarp=false;
                         }
                     }
                 }else{
                     if(c==':'){
-                        if(i>=arrs.length){ // 不带值的节点
-                            tLine.mLineType=LineType.Node_Empty;
-                            int start=0,end=arrs.length-1;
-                            if(tNameWarp){
-                                start++;
-                                end--;
-                            }
+                        int tStartIndex=tNameWarp?1:0;
+                        tNode.mName=new String(tArrs,tStartIndex,Math.max(0,(tNameWarp?tIndex:tIndex-1)-tStartIndex));
 
-                            if(start>=end){// 空标签节点
-                                // this.log("使用了空标签");
+                        tNode.mType=LineType.Node_Empty;
+                        if(tIndex>=tArrs.length)
+                            return tNode;
+
+                        tNode.mValueStr=Composer.trimLeftSide(new String(tArrs,tIndex+1,tArrs.length-tIndex-1));
+                        if(tNode.mValueStr.startsWith("#")||tNode.mValueStr.startsWith("!!")){
+                            int tCharIndex=tNode.mValueStr.indexOf('#');
+                            if(tCharIndex!=-1){
+                                tNode.mValueStr=tNode.mValueStr.substring(tCharIndex);
                             }else{
-                                tLine.mName=new String(arrs,start,end-start);
+                                tNode.mValueStr="";
                             }
-
-                            return tLine;
+                            return tNode;
                         }
-                        if(arrs[i]==' '){ // 带值的节点,后面肯定有值,因为已经trim过了
-                            tLine.mLineType=LineType.Node_Valued;
-                            int start=0,end=i-1;
-                            if(tNameWarp){
-                                start++;
-                                end--;
-                            }
 
-                            if(start>=end){// 空标签节点
-                                // this.log("使用了空标签");
-                            }else{
-                                tLine.mName=new String(arrs,start,end-start);
-                            }
-
-                            tLine.mValue=new String(arrs,i+1,arrs.length-i-1);
-                            String tValue=tLine.mValue.trim();
-                            if(tValue.startsWith("#")){
-                                tLine.mLineType=LineType.Node_Empty;
-                            }
-                            return tLine;
-                        }
+                        tNode.mType=LineType.Node_Valued;
+                        return tNode;
                     }
                 }
             }
-            tLine.mLineType=LineType.String;
-            tLine.mValue=new String(arrs);
-            return tLine;
+            tNode.mType=LineType.String;
+            tNode.mValueStr=pLine;
         }
+        return tNode;
     }
 
     private void log(String pMsg){
-        String showMsg="第"+(this.mLineIndex+2)+"行配置错误,"+pMsg+",无法导入注释\n请提供你的配置文件给作者以供分析格式\n错误内容(不包括引号) \""+this.getNextUnhandleLine()+"\"";
-        if(this.mMode==Mode.Inject){
+        String showMsg="第"+(this.mLineIndex+2)+"行配置错误,"+pMsg+",无法导入注释\n"
+                +"请提供你的配置文件给作者以供分析格式\n"
+                +"错误内容(不包括引号) \""+this.getNextUnhandleLine()+"\"";
+        if(this.mMode==Mode.DUMP){
             while(haveUnhandleLine()){
                 this.alreadyHandleLine();
             }
@@ -671,9 +652,9 @@ public class Composer{
     }
 
     private boolean isCloseLine(String pLine){
-        if(this.isBlank(pLine))
+        if((pLine=pLine.trim()).isEmpty())
             return true;
-        pLine=pLine.trim();
+
         char tFirstChar=pLine.charAt(0),tLastChar=pLine.charAt(pLine.length()-1);
         if(Composer.mWrapChars.contains(tFirstChar)){
             if(pLine.length()==1)
@@ -697,26 +678,45 @@ public class Composer{
 
     /**
      * 获取关闭标识字符,如果不存在,返回null
+     * 
+     * @param pLine
+     *            行
+     * @param pFullLine
+     *            是否为一个完整的行
      */
-    private Character getCloseMark(String pLine){
-        if(this.isBlank(pLine))
+    private Character getCloseMark(String pLine,boolean pFullLine){
+        if((pLine=pLine.trim()).isEmpty())
             return null;
+
         Character tc=pLine.charAt(pLine.length()-1);
         if(Composer.mWrapChars.contains(tc)){
+            if(tc=='\''){
+                int tNoBorderIndex=pLine.length()-1,tIndex;
+                while(tNoBorderIndex>0&&pLine.charAt(tIndex=tNoBorderIndex-1)=='\''){
+                    tNoBorderIndex=tIndex;
+                }
+
+                int tBorderAmount=pLine.length()-tNoBorderIndex;
+                if(pFullLine&&tBorderAmount==0&&pLine.length()>1){
+                    tBorderAmount--;
+                }
+                return tBorderAmount%2==0?null:tc;
+            }
             return tc;
         }else return null;
     }
 
-    private boolean isBlank(String pStr){
-        if(pStr==null||pStr.isEmpty())
-            return true;
-
-        char[] tContent=pStr.toCharArray();
-        for(int i=0;i<tContent.length;i++){
-            if(!Character.isWhitespace(tContent[i]))
-                return false;
-        }
-        return true;
+    /**
+     * 去除左边的空格
+     * 
+     * @param pStr
+     *            字符串
+     * @return 去除左边空格后的字符串
+     */
+    public static String trimLeftSide(String pStr){
+        int tIndex=-1,tLen=pStr.length();
+        while(++tIndex<tLen&&Character.isWhitespace(pStr.charAt(tIndex)));
+        return pStr.substring(tIndex);
     }
 
 }
