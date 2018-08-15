@@ -80,12 +80,14 @@ public class Composer{
             this.mSourceLines=Arrays.copyOf(this.mLines,this.mLines.length);
         }
     }
+
     private Composer(SerializableYamlObject pObject,String pContent,Mode pMode){
         this.mMode=pMode;
         this.mObject=pObject;
         this.mSourceLines=pContent.split("[\\r]?\n");
         this.mLines=Arrays.copyOf(this.mSourceLines,this.mSourceLines.length);
     }
+
     /**
      * 从给予的文本中搜索节点的注释,并导入到配置管理器中
      * <p>
@@ -101,6 +103,7 @@ public class Composer{
     public static boolean loadComment(CommentedYamlConfig pConfig,String pContent){
         return Composer.convert(new Composer(pConfig,pContent,Mode.LOAD));
     }
+
     /**
      * 将配置管理器中的注释输出并嵌入到文本中
      * <p>
@@ -541,6 +544,9 @@ public class Composer{
                     }
                 }else{
                     if(c==':'){
+                        if(tIndex<tArrs.length&&tArrs[tIndex]!=' ')
+                            continue;
+
                         int tStartIndex=tNameWarp?1:0;
                         tNode.mName=new String(tArrs,tStartIndex,Math.max(0,(tNameWarp?tIndex:tIndex-1)-tStartIndex));
 
