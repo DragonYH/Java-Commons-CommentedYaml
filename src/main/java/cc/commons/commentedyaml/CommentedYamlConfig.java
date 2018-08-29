@@ -8,8 +8,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -403,6 +405,16 @@ public class CommentedYamlConfig extends CommentedSection{
             return false;
         }catch(YAMLException ex){
             this.log("无法加载文件["+pFile+"],配置文件格式错误",ex);
+            if(this.options().isBackupOnFormatError()){
+                String tFileName=pFile.getName(),tSuffix="";
+                int tIndex=tFileName.lastIndexOf('.');
+                if(tIndex!=-1){
+                    tFileName=tFileName.substring(0,tIndex);
+                    tSuffix=tFileName.substring(tIndex+1);
+                }
+                tFileName=tFileName+new SimpleDateFormat("MMddHHmmssSSSS").format(new Date())+(tSuffix.isEmpty()?"":'.'+tSuffix);
+                pFile.renameTo(new File(pFile.getAbsoluteFile().getParentFile(),tFileName));
+            }
             return false;
         }finally{
             if(tInput!=null)
