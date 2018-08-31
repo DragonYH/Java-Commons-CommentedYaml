@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -34,7 +35,6 @@ import cc.commons.commentedyaml.serialize.convert.SerializableYamlUtils;
  * 支持注释的Yaml文件配置管理器
  * 
  * @author 聪聪
- *
  */
 public class CommentedYamlConfig extends CommentedSection{
 
@@ -283,7 +283,7 @@ public class CommentedYamlConfig extends CommentedSection{
         }finally{
             if(tOutput!=null)
                 try{
-                    tOutput.close();
+                tOutput.close();
                 }catch(IOException exp){
                 }
         }
@@ -389,14 +389,20 @@ public class CommentedYamlConfig extends CommentedSection{
      *             如果文件为空
      */
     public boolean loadFromFile(File pFile){
-        FileInputStream tInput=null;
+        InputStreamReader tInput=null;
+        boolean tBackup=false,tResult=true;
         try{
-            byte[] tContents=new byte[(int)pFile.length()];
-            if(!pFile.isFile())
-                this.tryCreateFile(pFile);
-            tInput=new FileInputStream(pFile);
-            tInput.read(tContents);
-            this.loadFromString(new String(tContents,"UTF-8"));
+            if(!pFile.isFile()) this.tryCreateFile(pFile);
+
+            int tReadLen=-1;
+            char[] tBuff=new char[2048];
+            InputStreamReader tReader=(tInput=new InputStreamReader(new FileInputStream(pFile),"UTF-8"));
+            StringBuilder tSBuilder=new StringBuilder();
+            while((tReadLen=tReader.read(tBuff))!=-1){
+                tSBuilder.append(tBuff,0,tReadLen);
+            }
+
+            this.loadFromString(tSBuilder.toString());
         }catch(FileNotFoundException ex){
             this.log("无法找到文件["+pFile+"]",ex);
             return false;
@@ -405,25 +411,27 @@ public class CommentedYamlConfig extends CommentedSection{
             return false;
         }catch(YAMLException ex){
             this.log("无法加载文件["+pFile+"],配置文件格式错误",ex);
-            if(this.options().isBackupOnFormatError()){
-                String tFileName=pFile.getName(),tSuffix="";
-                int tIndex=tFileName.lastIndexOf('.');
-                if(tIndex!=-1){
-                    tFileName=tFileName.substring(0,tIndex);
-                    tSuffix=tFileName.substring(tIndex+1);
-                }
-                tFileName=tFileName+new SimpleDateFormat("MMddHHmmssSSSS").format(new Date())+(tSuffix.isEmpty()?"":'.'+tSuffix);
-                pFile.renameTo(new File(pFile.getAbsoluteFile().getParentFile(),tFileName));
-            }
-            return false;
+            tBackup=this.options().isBackupOnFormatError();
+            tResult=false;
         }finally{
-            if(tInput!=null)
-                try{
-                    tInput.close();
-                }catch(IOException exp){
-                }
+            if(tInput!=null) try{
+                tInput.close();
+            }catch(IOException ignore){
+            }
         }
-        return true;
+
+        if(tBackup){
+            String tFileName=pFile.getName(),tSuffix="";
+            int tIndex=tFileName.lastIndexOf('.');
+            if(tIndex!=-1){
+                tSuffix=tFileName.substring(tIndex+1);
+                tFileName=tFileName.substring(0,tIndex);
+            }
+            tFileName=tFileName+(tSuffix.isEmpty()?"":'.'+tSuffix)+"."+new SimpleDateFormat("MMddHHmmssSSSS").format(new Date());
+            pFile.renameTo(new File(pFile.getAbsoluteFile().getParentFile(),tFileName));
+        }
+
+        return tResult;
     }
 
     /**
@@ -449,7 +457,7 @@ public class CommentedYamlConfig extends CommentedSection{
             while((tRead=stream.read(tBuffer))!=-1){
                 tBAOStream.write(tBuffer,0,tRead);
             }
-            
+
             this.loadFromString(new String(tBAOStream.toByteArray(),"UTF-8"));
         }catch(IOException ex){
             this.log("无法从输入流加载配置",ex);
