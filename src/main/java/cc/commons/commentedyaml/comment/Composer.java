@@ -167,10 +167,8 @@ public class Composer{
      *
      * @param pParent
      *            当前父节点
-     * @param pParentSpace
-     *            父节点的空格数量,root节点为-1
-     * @param pParentWeight
-     *            父节点的权重,root节点为-1
+     * @param pParentSpaceLevel
+     *            父节点的缩进等级,root节点为-1
      */
     private void convertNode(YamlNode pParent,int pParentSpaceLevel){
         YamlNode tLastChild=null; // 用于转换List节点时使用 
