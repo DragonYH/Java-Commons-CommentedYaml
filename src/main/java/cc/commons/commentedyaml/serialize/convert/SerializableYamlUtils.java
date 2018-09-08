@@ -1,19 +1,24 @@
 package cc.commons.commentedyaml.serialize.convert;
 
-import java.io.Serializable;
-import java.lang.reflect.*;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 
-import cc.commons.commentedyaml.comment.Composer;
-import cc.commons.commentedyaml.serialize.annotation.TagGenerics;
-import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 
 import cc.commons.commentedyaml.CommentedSection;
 import cc.commons.commentedyaml.CommentedValue;
 import cc.commons.commentedyaml.serialize.SerializableYamlObject;
 import cc.commons.commentedyaml.serialize.annotation.Tag;
+import cc.commons.commentedyaml.serialize.annotation.TagGenerics;
 
 
 /**
@@ -313,8 +318,8 @@ public class SerializableYamlUtils {
         try {
             Class[] Types;
             Types=pTagG==null?null:pTagG.T();
-            Class K=null;
-            Class V=null;
+            Class K=Object.class;
+            Class V=Object.class;
             if(Types!=null){
                 K=Types[0];
                 V=Types[1];
@@ -345,7 +350,7 @@ public class SerializableYamlUtils {
                     }
                 }else if(v instanceof CommentedSection){
                     Map mv = ((CommentedSection) v).values();
-                    if (V!=null&&SerializableYamlObject.class.isAssignableFrom(V)) {
+                    if (SerializableYamlObject.class.isAssignableFrom(V)) {
                         vv = saveToObject(mv,null,V.getClass());
                     } else {
                         vv = ConvertMapObject(tag, null,V.getClass(), (Map<String, Object>) (mv), pT);
@@ -353,7 +358,7 @@ public class SerializableYamlUtils {
                 }else{
                     vv=v;
                 }
-                if (V!=null&&Map.class.isAssignableFrom(V)) {
+                if (Map.class.isAssignableFrom(V)) {
                     if(Cons==null) {
                         newMap.put(key, ConvertMapObject(tag,null,V.getClass(),pNmap,pT));
                     }else{
@@ -523,12 +528,9 @@ public class SerializableYamlUtils {
         }else if(pV instanceof SerializableYamlObject){
             try{
                 Field fs[]=pV.getClass().getDeclaredFields();
-                boolean empty=((SerializableYamlObject)pV).getComments().isEmpty();
                 for(Field f : fs){
                     f.setAccessible(true);
                     Object o=f.get(pV);
-                    String[] comments=null;
-                    ArrayList<String> commentsList;
                     int mod=f.getModifiers();
                     if(Modifier.isFinal(mod)||Modifier.isStatic(mod)||Modifier.isTransient(mod)){
                         break;
