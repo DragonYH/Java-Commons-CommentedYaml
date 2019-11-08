@@ -277,20 +277,20 @@ public class CommentedSection{
         if(pPath.size()==1)
             return this;
 
-        CommentedSection section=this,tSection;
+        CommentedSection section=this;
         int i=pPath.size()-1;
         for(String sChildPath : pPath){
             if(i--<=0){
                 break;
             }
-            tSection=section.getSection(sChildPath);
-            if(tSection==null){
+            Object tVal=section.getDirectChild(sChildPath);
+            if(tVal==null||!(tVal instanceof CommentedSection)){
                 if(pCreateNew){
-                    tSection=new CommentedSection(section,sChildPath);
-                    section.mChild.put(sChildPath,CommentedValue.wrapperValue(section,sChildPath,tSection));
+                    tVal=new CommentedSection(section,sChildPath);
+                    section.mChild.put(sChildPath,CommentedValue.wrapperValue(section,sChildPath,tVal));
                 }else return null;
             }
-            section=tSection;
+            section=(CommentedSection)tVal;
         }
         return section;
     }
@@ -1280,4 +1280,10 @@ public class CommentedSection{
         SerializableYamlUtils.loadObject(this,pObj,pClass);
         return this;
     }
+
+    public Object getDirectChild(String pKey) {
+        CommentedValue tVal = this.mChild.get(pKey);
+        return tVal == null ? null : tVal.getValue();
+    }
+
 }
